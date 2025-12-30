@@ -1,0 +1,7 @@
+{
+  "name": "TripPlanner Pro",
+  "description": "A modern, front-end only travel planning application with multi-day itinerary management, local storage persistence, and photo journal features.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
