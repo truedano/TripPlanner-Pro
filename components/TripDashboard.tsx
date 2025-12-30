@@ -1,25 +1,86 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { TripData } from '../types';
-import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart } from 'lucide-react';
+import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart, Download, Upload } from 'lucide-react';
 
 interface Props {
   trips: TripData[];
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onCreate: () => void;
+  onImport: (trips: TripData[]) => void;
 }
 
-export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCreate }) => {
+export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCreate, onImport }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    if (trips.length === 0) {
+      alert('尚無行程可匯出');
+      return;
+    }
+    const dataStr = JSON.stringify(trips, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const exportFileDefaultName = `trip-journal-backup-${new Date().toISOString().split('T')[0]}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target?.result as string);
+        if (Array.isArray(imported)) {
+          onImport(imported);
+        } else {
+          alert('匯入格式錯誤，請提供正確的備份檔案。');
+        }
+      } catch (err) {
+        alert('解析檔案失敗。');
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
-      <div className="mb-12">
-        <div className="flex items-center space-x-2 text-rose-400 mb-2">
-           <Heart className="w-4 h-4 fill-current" />
-           <span className="text-[10px] font-black uppercase tracking-[0.3em]">Adventure Library</span>
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        <div>
+          <div className="flex items-center space-x-2 text-rose-400 mb-2">
+             <Heart className="w-4 h-4 fill-current" />
+             <span className="text-[10px] font-black uppercase tracking-[0.3em]">Adventure Library</span>
+          </div>
+          <h2 className="text-5xl font-serif font-black text-slate-900 italic tracking-tight">我的冒險回憶錄</h2>
+          <p className="text-slate-400 font-medium mt-2">點擊卡片，再次細味那些令人難忘的旅程片段。</p>
         </div>
-        <h2 className="text-5xl font-serif font-black text-slate-900 italic tracking-tight">我的冒險回憶錄</h2>
-        <p className="text-slate-400 font-medium mt-2">點擊卡片，再次細味那些令人難忘的旅程片段。</p>
+        
+        <div className="flex items-center space-x-2 no-print">
+          <button 
+            onClick={handleImportClick}
+            className="flex items-center px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:bg-slate-50 transition-all"
+          >
+            <Upload className="w-3.5 h-3.5 mr-1.5" /> 匯入備份
+          </button>
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+          <button 
+            onClick={handleExport}
+            className="flex items-center px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:bg-slate-50 transition-all"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" /> 匯出所有
+          </button>
+        </div>
       </div>
 
       {trips.length === 0 ? (
@@ -44,7 +105,6 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
               ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
               : 0;
 
-            // Find first image for thumbnail
             let firstImage = null;
             for (const day of trip.days) {
               for (const spot of day.spots) {
@@ -62,7 +122,6 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
                 onClick={() => onSelect(trip.id)}
                 className="group relative bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-50 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer"
               >
-                {/* Cover Image or Placeholder */}
                 <div className="aspect-[4/3] relative overflow-hidden bg-slate-50">
                    {firstImage ? (
                      <img src={firstImage} alt="" className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />

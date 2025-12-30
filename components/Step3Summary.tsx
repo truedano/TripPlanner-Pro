@@ -1,42 +1,37 @@
 
 import React, { useState } from 'react';
-import { TripData } from '../types';
-import { Printer, Calendar, MapPin, Navigation, Clock, Camera, AlertCircle, Share2, BookOpen, List, Heart, Download } from 'lucide-react';
+import { TripData, ExpenseCategory } from '../types';
+import { Printer, Calendar, MapPin, Navigation, Clock, Camera, AlertCircle, Share2, BookOpen, List, Heart, Wallet, PieChart, BarChart3, TrendingUp, Info } from 'lucide-react';
 
 interface Props {
   tripData: TripData;
 }
 
 export const Step3Summary: React.FC<Props> = ({ tripData }) => {
-  const [viewMode, setViewMode] = useState<'itinerary' | 'journal'>('journal');
+  const [viewMode, setViewMode] = useState<'itinerary' | 'journal' | 'budget'>('journal');
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
-  const handleShare = () => {
-    // In a real app, this would generate a link. For now, we simulate success.
-    alert('這份精美的日誌已準備好分享！ (您可以點擊列印按鈕並選擇「另存為 PDF」來傳送給好友)');
-  };
+  if (!tripData.days || tripData.days.length === 0) return null;
 
-  if (!tripData.days || tripData.days.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[2rem] border border-slate-100 shadow-xl max-w-lg mx-auto">
-        <AlertCircle className="w-16 h-16 text-amber-500 mb-4" />
-        <h3 className="text-xl font-black text-slate-800">無行程資料</h3>
-        <p className="text-slate-500">請先完成行程紀錄與規劃。</p>
-      </div>
-    );
-  }
+  // 財務統計邏輯
+  const allSpots = tripData.days.flatMap(d => d.spots);
+  const totalActual = allSpots.reduce((sum, s) => sum + (s.expense?.actual || 0), 0);
+  const totalEstimated = allSpots.reduce((sum, s) => sum + (s.expense?.estimated || 0), 0);
+  
+  // 核心邏輯更新：區分預算來源
+  const isBudgetSet = !!tripData.totalBudget && tripData.totalBudget > 0;
+  const budget = isBudgetSet ? tripData.totalBudget : (totalEstimated || 1); // 避免除以 0
+  const budgetProgress = (totalActual / budget) * 100;
+
+  const categoryTotals = Object.values(ExpenseCategory).map(cat => ({
+    name: cat,
+    total: allSpots.filter(s => s.expense?.category === cat).reduce((sum, s) => sum + (s.expense?.actual || 0), 0)
+  })).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-5xl mx-auto pb-20">
-      {/* Header Section */}
       <div className="text-center mb-16 no-print space-y-6">
-        <div className="flex items-center justify-center space-x-1 text-rose-400 mb-2">
-           <Heart className="w-4 h-4 fill-current" />
-           <span className="text-[10px] font-black uppercase tracking-[0.3em]">Memories Crafted</span>
-        </div>
         <h2 className="text-5xl sm:text-7xl font-serif font-black text-slate-900 tracking-tight leading-none italic">
           {tripData.name || '這是一場無名的冒險'}
         </h2>
@@ -47,151 +42,144 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
           </div>
           
           <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100">
-            <button 
-              onClick={() => setViewMode('journal')}
-              className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'journal' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              <BookOpen className="w-3 h-3 mr-2" /> 回憶日誌
+            <button onClick={() => setViewMode('journal')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'journal' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+              回憶日誌
             </button>
-            <button 
-              onClick={() => setViewMode('itinerary')}
-              className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'itinerary' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              <List className="w-3 h-3 mr-2" /> 條列行程
+            <button onClick={() => setViewMode('itinerary')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'itinerary' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+              條列行程
+            </button>
+            <button onClick={() => setViewMode('budget')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'budget' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
+              財務報告
             </button>
           </div>
         </div>
       </div>
 
-      {/* Floating Action Bar */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center bg-white/80 backdrop-blur-xl border border-slate-100 p-2 rounded-3xl shadow-2xl z-[60] no-print scale-110 sm:scale-100">
-        <button
-          onClick={handlePrint}
-          className="flex items-center px-6 py-3 text-slate-700 font-black text-sm hover:bg-slate-50 rounded-2xl transition-all"
-        >
-          <Printer className="w-4 h-4 mr-2" /> 列印 / PDF
-        </button>
-        <div className="w-px h-6 bg-slate-100 mx-1"></div>
-        <button
-          onClick={handleShare}
-          className="flex items-center px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-black transition-all shadow-xl active:scale-95"
-        >
-          <Share2 className="w-4 h-4 mr-2" /> 分享日誌
-        </button>
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center bg-white/80 backdrop-blur-xl border border-slate-100 p-2 rounded-3xl shadow-2xl z-[60] no-print">
+        <button onClick={handlePrint} className="flex items-center px-6 py-3 text-slate-700 font-black text-sm hover:bg-slate-50 rounded-2xl"><Printer className="w-4 h-4 mr-2" /> 列印 / PDF</button>
       </div>
 
-      {/* Main Content */}
-      <div className="space-y-24">
-        {tripData.days.map((day, dayIdx) => (
-          <div key={day.date} className="print-break-inside-avoid">
-            {/* Day Header */}
-            <div className={`flex flex-col mb-12 ${viewMode === 'journal' ? 'items-center text-center' : 'items-start'}`}>
-              <span className="text-blue-500 font-serif italic text-2xl mb-2">Day {dayIdx + 1}</span>
-              <div className="h-px w-12 bg-blue-100 mb-4"></div>
-              <h3 className="text-sm font-black text-slate-300 uppercase tracking-[0.4em]">{day.date}</h3>
-            </div>
-
-            <div className={viewMode === 'journal' ? 'space-y-20' : 'space-y-6'}>
-              {day.spots.length === 0 ? (
-                <div className="text-center py-20 bg-slate-50 border border-dashed border-slate-100 rounded-[3rem] text-slate-300 font-serif italic">
-                  一段靜謐的空白，或許是為了下一場精彩做準備。
-                </div>
+      {viewMode === 'budget' ? (
+        <div className="space-y-8 animate-in zoom-in-95 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+              {isBudgetSet ? (
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-4">自訂總預算</span>
               ) : (
-                day.spots.map((spot, spotIdx) => (
-                  <div key={spot.id} className={`group ${viewMode === 'journal' ? 'space-y-8' : 'relative pl-12'}`}>
-                    {/* Itinerary View Indicators */}
-                    {viewMode === 'itinerary' && (
-                      <>
-                        {spotIdx !== day.spots.length - 1 && (
-                          <div className="absolute left-[23px] top-12 bottom-[-40px] w-px bg-slate-200"></div>
-                        )}
-                        <div className="absolute left-0 top-1 w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm z-10 font-serif font-black italic text-slate-400 group-hover:border-blue-500 group-hover:text-blue-500 transition-colors">
-                          {spotIdx + 1}
-                        </div>
-                      </>
-                    )}
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
+                  <Info className="w-3 h-3 mr-1" /> 系統估算總額
+                </span>
+              )}
+              <span className="text-4xl font-serif font-black italic text-slate-800">{tripData.currency} {isBudgetSet ? tripData.totalBudget?.toLocaleString() : totalEstimated.toLocaleString()}</span>
+              <TrendingUp className="w-6 h-6 text-slate-100 mt-4" />
+            </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-emerald-100 shadow-sm flex flex-col items-center text-center">
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">目前實際總支出</span>
+              <span className="text-4xl font-serif font-black italic text-emerald-600">{tripData.currency} {totalActual.toLocaleString()}</span>
+              <Wallet className="w-6 h-6 text-emerald-100 mt-4" />
+            </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center text-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">預算剩餘</span>
+              <span className={`text-4xl font-serif font-black italic ${budget - totalActual < 0 ? 'text-rose-500' : 'text-slate-800'}`}>
+                {tripData.currency} {(budget - totalActual).toLocaleString()}
+              </span>
+              <BarChart3 className="w-6 h-6 text-slate-100 mt-4" />
+            </div>
+          </div>
 
-                    <div className={`${viewMode === 'journal' ? 'max-w-4xl mx-auto' : 'bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm'}`}>
-                      <div className={`flex flex-col ${viewMode === 'journal' ? 'gap-10' : 'md:flex-row gap-6'}`}>
-                        
-                        {/* Info Section */}
-                        <div className={`${viewMode === 'journal' ? 'text-center' : 'flex-grow md:w-1/2'}`}>
-                          <div className={`flex items-center text-blue-400 font-black text-[10px] uppercase tracking-widest mb-4 ${viewMode === 'journal' ? 'justify-center' : ''}`}>
-                            <Clock className="w-3 h-3 mr-1" />
-                            <span>{spot.startTime || '--:--'} — {spot.endTime || '--:--'}</span>
-                          </div>
-
-                          <h4 className={`text-slate-900 font-black tracking-tight leading-tight mb-6 transition-colors ${viewMode === 'journal' ? 'text-4xl sm:text-6xl font-serif italic' : 'text-2xl group-hover:text-blue-600'}`}>
-                            {spot.name}
-                          </h4>
-                          
-                          {spot.notes && (
-                            <div className={`relative mb-8 max-w-2xl mx-auto`}>
-                              {viewMode === 'itinerary' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-100 rounded-full"></div>}
-                              <p className={`text-slate-500 font-medium leading-relaxed italic ${viewMode === 'journal' ? 'text-xl sm:text-2xl font-serif text-slate-400' : 'pl-4 text-base'}`}>
-                                "{spot.notes}"
-                              </p>
-                            </div>
-                          )}
-
-                          <div className={`flex items-center space-x-3 ${viewMode === 'journal' ? 'justify-center opacity-0 group-hover:opacity-100 transition-opacity no-print' : 'no-print'}`}>
-                            {spot.mapUrl && (
-                              <a
-                                href={spot.mapUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center px-4 py-2 bg-slate-50 text-slate-500 rounded-xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100"
-                              >
-                                <Navigation className="w-3 h-3 mr-2" /> 地圖位置
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Image Gallery Section */}
-                        {spot.images && spot.images.length > 0 && (
-                          <div className={`${viewMode === 'journal' ? 'w-full' : 'md:w-1/2'} grid grid-cols-1 sm:grid-cols-2 gap-6`}>
-                            {spot.images.map((img, i) => (
-                              <div key={i} className="group/image-card space-y-3">
-                                <div 
-                                  className={`relative overflow-hidden rounded-[2rem] shadow-xl transition-all duration-700 hover:scale-[1.02] ${
-                                    viewMode === 'journal' 
-                                      ? (i === 0 && spot.images?.length === 1 ? 'aspect-[16/10]' : 'aspect-square')
-                                      : 'aspect-video'
-                                  }`}
-                                >
-                                  <img src={img.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover/image-card:opacity-100 transition-opacity"></div>
-                                </div>
-                                {img.caption && (
-                                  <p className={`text-center text-slate-400 text-xs font-medium italic px-4 leading-relaxed`}>
-                                    {img.caption}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+          <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+               <h3 className="text-xl font-black text-slate-800 flex items-center">
+                 <PieChart className="w-5 h-5 mr-2 text-blue-500" /> 支出分類佔比
+               </h3>
+               <span className="text-xs font-bold text-slate-400">依實際支出計算</span>
+            </div>
+            {totalActual > 0 ? (
+              <div className="space-y-6">
+                {categoryTotals.map(cat => (
+                  <div key={cat.name} className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm font-black text-slate-700">{cat.name}</span>
+                      <span className="text-sm font-bold text-slate-400">{tripData.currency} {cat.total.toLocaleString()} ({((cat.total / totalActual) * 100).toFixed(1)}%)</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden">
+                      <div className="h-full bg-slate-800 rounded-full" style={{ width: `${(cat.total / totalActual) * 100}%` }}></div>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-slate-300 font-bold italic">尚無任何支出紀錄</div>
+            )}
           </div>
-        ))}
-      </div>
-
-      {/* Print Footer */}
-      <div className="hidden print:block mt-32 text-center pt-20 border-t-2 border-slate-100">
-        <h2 className="text-6xl font-serif font-black italic mb-6 text-slate-900">{tripData.name}</h2>
-        <div className="flex items-center justify-center space-x-6 text-slate-300 text-sm font-black uppercase tracking-[0.5em]">
-           <span>Travel Memories</span>
-           <Heart className="w-4 h-4 fill-current text-rose-200" />
-           <span>TripJournal Pro</span>
+          
+          <div className={`${isBudgetSet || totalActual > 0 ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'} p-10 rounded-[3rem] border`}>
+             <div className="flex items-center justify-between mb-4">
+               <span className={`text-sm font-black uppercase tracking-widest ${isBudgetSet || totalActual > 0 ? 'text-rose-800' : 'text-slate-400'}`}>
+                 {isBudgetSet ? '預算執行進度' : '支出相對於系統估算之比例'}
+               </span>
+               <span className={`text-sm font-black ${isBudgetSet || totalActual > 0 ? 'text-rose-800' : 'text-slate-400'}`}>
+                 {isBudgetSet || totalEstimated > 0 ? `${budgetProgress.toFixed(1)}%` : '0%'}
+               </span>
+             </div>
+             <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner">
+               <div className={`h-full rounded-full transition-all duration-1000 ${budgetProgress > 100 ? 'bg-rose-600' : 'bg-emerald-500'}`} style={{ width: `${Math.min(budgetProgress, 100)}%` }}></div>
+             </div>
+             {budgetProgress > 100 && (
+               <div className="mt-4 flex items-center justify-center space-x-2 text-rose-600 animate-pulse">
+                 <AlertCircle className="w-4 h-4" />
+                 <p className="text-xs font-black italic tracking-wide">注意：已超出預期支出上限！</p>
+               </div>
+             )}
+             {!isBudgetSet && (
+               <p className="mt-4 text-[10px] text-slate-400 font-bold text-center italic">
+                 提示：您未設定總預算，目前的百分比是根據行程中所有景點的「估計支出」總和計算。
+               </p>
+             )}
+          </div>
         </div>
-        <p className="mt-8 text-[10px] text-slate-200 uppercase tracking-widest italic">Documented on {new Date().toLocaleDateString()}</p>
-      </div>
+      ) : (
+        <div className="space-y-24">
+          {tripData.days.map((day, dayIdx) => (
+            <div key={day.date} className="print-break-inside-avoid">
+              <div className={`flex flex-col mb-12 ${viewMode === 'journal' ? 'items-center text-center' : 'items-start'}`}>
+                <span className="text-blue-500 font-serif italic text-2xl mb-2">Day {dayIdx + 1}</span>
+                <h3 className="text-sm font-black text-slate-300 uppercase tracking-[0.4em]">{day.date}</h3>
+              </div>
+              <div className={viewMode === 'journal' ? 'space-y-20' : 'space-y-6'}>
+                {day.spots.map((spot, spotIdx) => (
+                  <div key={spot.id} className={`${viewMode === 'journal' ? 'max-w-4xl mx-auto' : 'bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm'}`}>
+                    <div className="flex flex-col md:flex-row gap-6">
+                      <div className="flex-grow">
+                         <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center text-blue-400 font-black text-[10px] uppercase tracking-widest">
+                             <Clock className="w-3 h-3 mr-1" />
+                             <span>{spot.startTime} — {spot.endTime}</span>
+                           </div>
+                           {spot.expense && spot.expense.actual > 0 && (
+                             <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                               {tripData.currency} {spot.expense.actual.toLocaleString()}
+                             </div>
+                           )}
+                         </div>
+                         <h4 className={`text-slate-900 font-black tracking-tight leading-tight mb-4 ${viewMode === 'journal' ? 'text-4xl font-serif italic' : 'text-2xl'}`}>{spot.name}</h4>
+                         {spot.notes && <p className="text-slate-500 italic mb-6">"{spot.notes}"</p>}
+                      </div>
+                      {spot.images && spot.images.length > 0 && (
+                        <div className="md:w-1/3 grid grid-cols-2 gap-2">
+                           {spot.images.slice(0, 2).map((img, i) => (
+                             <img key={i} src={img.url} className="w-full aspect-square object-cover rounded-xl" />
+                           ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

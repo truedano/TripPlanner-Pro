@@ -4,35 +4,64 @@ import { TripDashboard } from './components/TripDashboard';
 import { Step1Setup } from './components/Step1Setup';
 import { Step2Editor } from './components/Step2Editor';
 import { Step3Summary } from './components/Step3Summary';
-import { TripData, Step, DayPlan } from './types';
-import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, LayoutGrid, Plus, Trash2, Heart } from 'lucide-react';
+import { TripData, Step } from './types';
+import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2 } from 'lucide-react';
+import { db } from './db';
 
-const TRIPS_STORAGE_KEY = 'trip_planner_all_trips';
+const TRIPS_STORAGE_KEY_LEGACY = 'trip_planner_all_trips';
 const ACTIVE_TRIP_ID_KEY = 'trip_planner_active_id';
 
 const App: React.FC = () => {
-  const [trips, setTrips] = useState<TripData[]>(() => {
-    const saved = localStorage.getItem(TRIPS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [trips, setTrips] = useState<TripData[]>([]);
   const [activeTripId, setActiveTripId] = useState<string | null>(() => {
-    const savedId = localStorage.getItem(ACTIVE_TRIP_ID_KEY);
-    return savedId || null;
+    return localStorage.getItem(ACTIVE_TRIP_ID_KEY) || null;
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   const activeTrip = useMemo(() => trips.find(t => t.id === activeTripId), [trips, activeTripId]);
   
   const hasDays = activeTrip && activeTrip.days && activeTrip.days.length > 0;
 
-  const [step, setStep] = useState<Step>(() => {
-    if (!activeTripId || !activeTrip) return Step.DASHBOARD;
-    return hasDays ? Step.PLANNING : Step.SETUP;
-  });
+  const [step, setStep] = useState<Step>(Step.DASHBOARD);
 
+  // 初始化資料庫與遷移舊資料
   useEffect(() => {
-    localStorage.setItem(TRIPS_STORAGE_KEY, JSON.stringify(trips));
-  }, [trips]);
+    const initData = async () => {
+      setIsLoading(true);
+      try {
+        // 1. 檢查是否有舊的 localStorage 資料需要遷移
+        const legacyData = localStorage.getItem(TRIPS_STORAGE_KEY_LEGACY);
+        if (legacyData) {
+          const parsedLegacy: TripData[] = JSON.parse(legacyData);
+          if (parsedLegacy.length > 0) {
+            await db.trips.bulkPut(parsedLegacy);
+            localStorage.removeItem(TRIPS_STORAGE_KEY_LEGACY);
+            console.log('Legacy data migrated to IndexedDB');
+          }
+        }
+
+        // 2. 從 IndexedDB 讀取所有行程
+        const allTrips = await db.trips.orderBy('lastModified').reverse().toArray();
+        setTrips(allTrips);
+
+        // 3. 判斷目前的 Step
+        if (activeTripId) {
+          const current = allTrips.find(t => t.id === activeTripId);
+          if (current) {
+            setStep(current.days.length > 0 ? Step.PLANNING : Step.SETUP);
+          } else {
+            setActiveTripId(null);
+            setStep(Step.DASHBOARD);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to initialize database:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initData();
+  }, []);
 
   useEffect(() => {
     if (activeTripId) {
@@ -42,7 +71,7 @@ const App: React.FC = () => {
     }
   }, [activeTripId]);
 
-  const handleCreateNewTrip = () => {
+  const handleCreateNewTrip = async () => {
     const newTrip: TripData = {
       id: crypto.randomUUID(),
       name: '',
@@ -51,6 +80,7 @@ const App: React.FC = () => {
       days: [],
       lastModified: Date.now()
     };
+    await db.trips.add(newTrip);
     setTrips(prev => [newTrip, ...prev]);
     setActiveTripId(newTrip.id);
     setStep(Step.SETUP);
@@ -66,13 +96,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteTrip = (id: string) => {
+  const handleDeleteTrip = async (id: string) => {
     if (!window.confirm('確定要永久刪除這份回憶嗎？此操作無法還原。')) return;
     
-    setTrips(prev => {
-      const filtered = prev.filter(t => t.id !== id);
-      return [...filtered];
-    });
+    await db.trips.delete(id);
+    setTrips(prev => prev.filter(t => t.id !== id));
     
     if (activeTripId === id) {
       setActiveTripId(null);
@@ -80,23 +108,30 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateActiveTrip = (updates: Partial<TripData>) => {
+  const handleUpdateActiveTrip = async (updates: Partial<TripData>) => {
     if (!activeTripId) return;
+    const now = Date.now();
+    await db.trips.update(activeTripId, { ...updates, lastModified: now });
     setTrips(prev => prev.map(t => 
       t.id === activeTripId 
-        ? { ...t, ...updates, lastModified: Date.now() } 
+        ? { ...t, ...updates, lastModified: now } 
         : t
     ));
   };
 
-  // 單純切換步驟，初始化邏輯已移至 Step1Setup 內部處理
+  const handleImportTrips = async (importedTrips: TripData[]) => {
+    await db.trips.bulkPut(importedTrips);
+    const allTrips = await db.trips.orderBy('lastModified').reverse().toArray();
+    setTrips(allTrips);
+    alert('成功匯入資料！');
+  };
+
   const nextStep = () => {
     if (step === Step.SETUP && activeTrip) {
       if (!activeTrip.name || !activeTrip.startDate || !activeTrip.endDate) {
         alert('請先填寫行程名稱與日期區間');
         return;
       }
-      // 如果用戶直接點擊 header 的下一步且尚未有天數，則提示
       if (activeTrip.days.length === 0) {
         alert('請先使用 AI 規劃或點擊下方按鈕手動建立行程');
         return;
@@ -112,6 +147,15 @@ const App: React.FC = () => {
     { id: Step.PLANNING, label: '紀錄', icon: MapPin },
     { id: Step.SUMMARY, label: '回憶', icon: CheckCircle },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+        <p className="text-slate-400 font-bold italic tracking-widest uppercase text-xs">正在喚醒您的回憶...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FDFDFC]">
@@ -201,7 +245,8 @@ const App: React.FC = () => {
             trips={trips} 
             onSelect={handleSelectTrip} 
             onDelete={handleDeleteTrip} 
-            onCreate={handleCreateNewTrip} 
+            onCreate={handleCreateNewTrip}
+            onImport={handleImportTrips}
           />
         )}
         {step === Step.SETUP && activeTrip && (
@@ -224,7 +269,7 @@ const App: React.FC = () => {
            </p>
            <div className="pt-4 border-t border-slate-50 flex items-center justify-center space-x-4 opacity-30 grayscale grayscale-100">
              <Save className="w-4 h-4" />
-             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Offline First Technology</span>
+             <span className="text-[10px] font-black uppercase tracking-[0.2em]">IndexedDB Storage Ready</span>
            </div>
         </div>
       </footer>
