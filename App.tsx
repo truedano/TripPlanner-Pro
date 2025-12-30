@@ -89,23 +89,18 @@ const App: React.FC = () => {
     ));
   };
 
+  // 單純切換步驟，初始化邏輯已移至 Step1Setup 內部處理
   const nextStep = () => {
     if (step === Step.SETUP && activeTrip) {
       if (!activeTrip.name || !activeTrip.startDate || !activeTrip.endDate) {
-        alert('請填寫行程名稱與日期區間');
+        alert('請先填寫行程名稱與日期區間');
         return;
       }
-      const start = new Date(activeTrip.startDate);
-      const end = new Date(activeTrip.endDate);
-      const days: DayPlan[] = [];
-      let current = new Date(start);
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        const existingDay = activeTrip.days.find(d => d.date === dateStr);
-        days.push(existingDay || { date: dateStr, spots: [] });
-        current.setDate(current.getDate() + 1);
+      // 如果用戶直接點擊 header 的下一步且尚未有天數，則提示
+      if (activeTrip.days.length === 0) {
+        alert('請先使用 AI 規劃或點擊下方按鈕手動建立行程');
+        return;
       }
-      handleUpdateActiveTrip({ days });
     }
     setStep(prev => (prev < 3 ? prev + 1 : prev));
   };
@@ -213,6 +208,7 @@ const App: React.FC = () => {
           <Step1Setup 
             tripData={activeTrip} 
             onUpdate={handleUpdateActiveTrip} 
+            onNext={() => setStep(Step.PLANNING)}
           />
         )}
         {step === Step.PLANNING && activeTrip && <Step2Editor tripData={activeTrip} onUpdate={handleUpdateActiveTrip} />}
