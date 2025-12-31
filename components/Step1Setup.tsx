@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { TripData, DayPlan, ExpenseCategory } from '../types';
 import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
+import { ApiKeyManager } from '../utils/apiKeyManager';
 
 interface Props {
   tripData: TripData;
@@ -45,7 +46,14 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
     onUpdate({ name: localName });
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = ApiKeyManager.get();
+      if (!apiKey) {
+        alert('請先點擊右上角「設定」按鈕設定您的 Google API Key 才能使用 AI 功能。');
+        setIsGenerating(false);
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       const startDate = new Date(tripData.startDate);
       const endDate = new Date(tripData.endDate);
       const diffTime = Math.abs(endDate.getTime() - startDate.getTime());

@@ -5,7 +5,8 @@ import { Step1Setup } from './components/Step1Setup';
 import { Step2Editor } from './components/Step2Editor';
 import { Step3Summary } from './components/Step3Summary';
 import { TripData, Step } from './types';
-import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2, Settings } from 'lucide-react';
+import { ApiKeyModal } from './components/ApiKeyModal';
 import { db } from './db';
 
 const TRIPS_STORAGE_KEY_LEGACY = 'trip_planner_all_trips';
@@ -17,9 +18,10 @@ const App: React.FC = () => {
     return localStorage.getItem(ACTIVE_TRIP_ID_KEY) || null;
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   const activeTrip = useMemo(() => trips.find(t => t.id === activeTripId), [trips, activeTripId]);
-  
+
   const hasDays = activeTrip && activeTrip.days && activeTrip.days.length > 0;
 
   const [step, setStep] = useState<Step>(Step.DASHBOARD);
@@ -98,10 +100,10 @@ const App: React.FC = () => {
 
   const handleDeleteTrip = async (id: string) => {
     if (!window.confirm('確定要永久刪除這份回憶嗎？此操作無法還原。')) return;
-    
+
     await db.trips.delete(id);
     setTrips(prev => prev.filter(t => t.id !== id));
-    
+
     if (activeTripId === id) {
       setActiveTripId(null);
       setStep(Step.DASHBOARD);
@@ -112,9 +114,9 @@ const App: React.FC = () => {
     if (!activeTripId) return;
     const now = Date.now();
     await db.trips.update(activeTripId, { ...updates, lastModified: now });
-    setTrips(prev => prev.map(t => 
-      t.id === activeTripId 
-        ? { ...t, ...updates, lastModified: now } 
+    setTrips(prev => prev.map(t =>
+      t.id === activeTripId
+        ? { ...t, ...updates, lastModified: now }
         : t
     ));
   };
@@ -162,7 +164,7 @@ const App: React.FC = () => {
       <header className="bg-white/80 backdrop-blur-xl border-b border-slate-100 sticky top-0 z-50 no-print">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <button 
+            <button
               onClick={() => {
                 setActiveTripId(null);
                 setStep(Step.DASHBOARD);
@@ -182,7 +184,7 @@ const App: React.FC = () => {
 
             {step !== Step.DASHBOARD && (
               <div className="flex items-center space-x-4">
-                 <button 
+                <button
                   onClick={prevStep}
                   disabled={step === Step.SETUP}
                   className="p-2 text-slate-300 hover:text-slate-900 disabled:opacity-10 transition-colors"
@@ -191,13 +193,13 @@ const App: React.FC = () => {
                 </button>
                 <div className="flex space-x-2">
                   {navSteps.map(s => (
-                    <div 
-                      key={s.id} 
+                    <div
+                      key={s.id}
                       className={`h-1.5 rounded-full transition-all duration-500 ${step === s.id ? 'w-8 bg-slate-900' : 'w-4 bg-slate-100'}`}
                     />
                   ))}
                 </div>
-                <button 
+                <button
                   onClick={nextStep}
                   disabled={step === Step.SUMMARY}
                   className="p-2 text-slate-300 hover:text-slate-900 disabled:opacity-10 transition-colors"
@@ -209,7 +211,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center space-x-3">
               {step === Step.DASHBOARD ? (
-                <button 
+                <button
                   onClick={handleCreateNewTrip}
                   className="flex items-center px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-sm font-black shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-95"
                 >
@@ -217,13 +219,13 @@ const App: React.FC = () => {
                 </button>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <button 
+                  <button
                     onClick={() => activeTripId && handleDeleteTrip(activeTripId)}
                     className="p-2.5 text-slate-300 hover:text-red-500 transition-colors rounded-2xl hover:bg-red-50"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       setActiveTripId(null);
                       setStep(Step.DASHBOARD);
@@ -235,24 +237,32 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
+
+            <button
+              onClick={() => setShowApiKeyModal(true)}
+              className="ml-4 p-2 text-slate-300 hover:text-slate-900 transition-colors rounded-xl hover:bg-slate-50"
+              title="API Key 設定"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </header>
 
       <main className="flex-grow max-w-5xl w-full mx-auto px-4 py-8">
         {step === Step.DASHBOARD && (
-          <TripDashboard 
-            trips={trips} 
-            onSelect={handleSelectTrip} 
-            onDelete={handleDeleteTrip} 
+          <TripDashboard
+            trips={trips}
+            onSelect={handleSelectTrip}
+            onDelete={handleDeleteTrip}
             onCreate={handleCreateNewTrip}
             onImport={handleImportTrips}
           />
         )}
         {step === Step.SETUP && activeTrip && (
-          <Step1Setup 
-            tripData={activeTrip} 
-            onUpdate={handleUpdateActiveTrip} 
+          <Step1Setup
+            tripData={activeTrip}
+            onUpdate={handleUpdateActiveTrip}
             onNext={() => setStep(Step.PLANNING)}
           />
         )}
@@ -262,18 +272,23 @@ const App: React.FC = () => {
 
       <footer className="bg-white py-12 text-center no-print">
         <div className="max-w-xs mx-auto space-y-4">
-           <Heart className="w-6 h-6 mx-auto text-rose-200 fill-current" />
-           <p className="text-slate-400 text-xs font-medium leading-relaxed">
-             TripJournal 協助您珍藏每一段珍貴的旅途時光。<br/>
-             所有資料皆安全的儲存於您的本地設備。
-           </p>
-           <div className="pt-4 border-t border-slate-50 flex items-center justify-center space-x-4 opacity-30 grayscale grayscale-100">
-             <Save className="w-4 h-4" />
-             <span className="text-[10px] font-black uppercase tracking-[0.2em]">IndexedDB Storage Ready</span>
-           </div>
+          <Heart className="w-6 h-6 mx-auto text-rose-200 fill-current" />
+          <p className="text-slate-400 text-xs font-medium leading-relaxed">
+            TripJournal 協助您珍藏每一段珍貴的旅途時光。<br />
+            所有資料皆安全的儲存於您的本地設備。
+          </p>
+          <div className="pt-4 border-t border-slate-50 flex items-center justify-center space-x-4 opacity-30 grayscale grayscale-100">
+            <Save className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">IndexedDB Storage Ready</span>
+          </div>
         </div>
       </footer>
-    </div>
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        onSave={() => { }}
+      />
+    </div >
   );
 };
 
