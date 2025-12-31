@@ -1,27 +1,239 @@
 
-import React, { useState, useRef } from 'react';
-import { TripData, Spot, DayPlan, SpotImage, ExpenseCategory } from '../types';
-import { Plus, Trash2, MapPin, ChevronUp, ChevronDown, Clock, Edit3, X, Library, Wallet } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { TripData, Spot, SpotImage, ExpenseCategory } from '../types';
+import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical } from 'lucide-react';
 import { compressImage } from '../utils/image';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+  DragEndEvent,
+  DragStartEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Props {
   tripData: TripData;
   onUpdate: (updates: Partial<TripData>) => void;
 }
 
+interface DroppableDayTabProps {
+  dayIndex: number;
+  date: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+// 可拖曳的日期分頁 (Droppable Tab)
+const DroppableDayTab: React.FC<DroppableDayTabProps> = ({ 
+  dayIndex, 
+  date, 
+  isActive, 
+  onClick 
+}) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `day-tab-${dayIndex}`,
+    data: { index: dayIndex }
+  });
+
+  return (
+    <button
+      type="button"
+      ref={setNodeRef}
+      onClick={onClick}
+      className={`relative px-6 py-3 rounded-2xl font-black transition-all flex flex-col items-center flex-shrink-0 ${
+        isActive 
+          ? 'bg-blue-600 text-white shadow-xl -translate-y-1' 
+          : isOver 
+            ? 'bg-blue-100 text-blue-600 border-2 border-blue-300 scale-105' 
+            : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200'
+      }`}
+    >
+      <span className="text-[10px] opacity-70 uppercase">Day {dayIndex + 1}</span>
+      <span className="text-sm">{new Date(date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}</span>
+    </button>
+  );
+};
+
+interface SortableSpotItemProps {
+  spot: Spot;
+  currency?: string;
+  onClick: () => void;
+}
+
+// 可排序的景點卡片 (Sortable Spot Item)
+const SortableSpotItem: React.FC<SortableSpotItemProps> = ({ 
+  spot, 
+  currency, 
+  onClick 
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: spot.id });
+
+  const style = {
+    // 使用 Translate 而非 Transform，避免縮放時的副作用，提升排序穩定度
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.3 : 1,
+    // 雖然 CSS class 有 touch-none，這裡強制加 style 確保生效
+    touchAction: 'none'
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className="group bg-slate-50 border border-slate-100 rounded-[1.5rem] p-5 hover:shadow-xl transition-all hover:bg-white hover:border-blue-200"
+    >
+      <div className="flex items-start">
+        {/* 拖曳手柄 - 獨立區域 */}
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="self-center mr-3 p-3 -ml-2 text-slate-300 cursor-grab hover:text-slate-500 active:cursor-grabbing touch-none"
+          style={{ touchAction: 'none' }}
+        >
+          <GripVertical className="w-5 h-5" />
+        </div>
+
+        <div onClick={onClick} className="flex flex-grow items-start cursor-pointer">
+          <div className="hidden sm:flex flex-col items-center justify-center w-24 pr-4 border-r border-slate-200 mr-6 shrink-0">
+            <span className="text-xs font-black text-blue-600">{spot.startTime || '--:--'}</span>
+            <div className="h-4 w-0.5 bg-blue-100 my-1"></div>
+            <span className="text-[10px] font-bold text-slate-400">{spot.endTime || '--:--'}</span>
+          </div>
+          <div className="flex-grow">
+            <div className="flex justify-between items-start mb-2">
+              <h4 className="font-black text-lg text-slate-800 truncate">{spot.name}</h4>
+              {spot.expense && spot.expense.actual > 0 && (
+                <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-xs font-black">
+                  {currency} {spot.expense.actual.toLocaleString()}
+                </div>
+              )}
+            </div>
+            <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center">
+              <Edit3 className="w-3 h-3 mr-1" /> 編輯紀錄
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
   
   const albumInputRef = useRef<HTMLInputElement>(null);
 
-  if (!tripData.days || tripData.days.length === 0) return null;
+  // DnD Sensors Configuration
+  // 改用 MouseSensor 和 TouchSensor 以獲得更好的相容性
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8, // 滑鼠需移動 8px 才會開始拖曳，避免點擊誤觸
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150, // 觸控需按住 150ms 才會開始拖曳，避免與捲動衝突
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const activeDay = tripData.days[activeDayIndex];
+  // 1. 安全地取得 activeDay (可能為 undefined)
+  const activeDay = (tripData.days && tripData.days.length > 0) ? tripData.days[activeDayIndex] : undefined;
+  
+  // 2. 準備 useMemo 所需的資料，若 activeDay 不存在則給空陣列
+  const activeDaySpots = activeDay ? activeDay.spots : [];
+  
+  // 3. 在任何 return 之前呼叫 useMemo
+  const spotIds = useMemo(() => activeDaySpots.map(s => s.id), [activeDaySpots]);
+
+  // 4. 現在可以安全地進行條件回傳
+  if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
+
   const dailyTotal = activeDay.spots.reduce((sum, spot) => sum + (spot.expense?.actual || 0), 0);
-  const dailyEstimated = activeDay.spots.reduce((sum, spot) => sum + (spot.expense?.estimated || 0), 0);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragSpotId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragSpotId(null);
+
+    if (!over) return;
+
+    const activeSpotId = active.id as string;
+    const overId = over.id as string;
+
+    // 情境 1: 跨天移動 (拖曳到日期 Tab)
+    if (overId.startsWith('day-tab-')) {
+      const targetDayIndex = parseInt(overId.replace('day-tab-', ''), 10);
+      
+      // 如果目標不是當前天
+      if (targetDayIndex !== activeDayIndex) {
+        const newDays = [...tripData.days];
+        const sourceSpots = [...newDays[activeDayIndex].spots];
+        const targetSpots = [...newDays[targetDayIndex].spots];
+        
+        const spotIndex = sourceSpots.findIndex(s => s.id === activeSpotId);
+        if (spotIndex !== -1) {
+          const [movedSpot] = sourceSpots.splice(spotIndex, 1);
+          // 將景點加到目標天數的最後
+          targetSpots.push(movedSpot);
+          
+          newDays[activeDayIndex] = { ...newDays[activeDayIndex], spots: sourceSpots };
+          newDays[targetDayIndex] = { ...newDays[targetDayIndex], spots: targetSpots };
+          
+          onUpdate({ days: newDays });
+        }
+      }
+      return;
+    }
+
+    // 情境 2: 同一天內重新排序
+    if (activeSpotId !== overId) {
+      const oldIndex = activeDay.spots.findIndex((s) => s.id === activeSpotId);
+      const newIndex = activeDay.spots.findIndex((s) => s.id === overId);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newSpots = arrayMove(activeDay.spots, oldIndex, newIndex);
+        const newDays = [...tripData.days];
+        newDays[activeDayIndex] = { ...activeDay, spots: newSpots };
+        onUpdate({ days: newDays });
+      }
+    }
+  };
 
   const handleAddSpot = () => {
     setEditingSpot({
@@ -80,71 +292,77 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     });
   };
 
+  const activeSpotData = activeDragSpotId ? activeDay.spots.find(s => s.id === activeDragSpotId) : null;
+
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="flex space-x-2 overflow-x-auto pb-4 mb-6 no-scrollbar">
-        {tripData.days.map((day, idx) => (
-          <button
-            key={day.date}
-            onClick={() => setActiveDayIndex(idx)}
-            className={`px-6 py-3 rounded-2xl font-black transition-all flex flex-col items-center ${
-              activeDayIndex === idx ? 'bg-blue-600 text-white shadow-xl -translate-y-1' : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200'
-            }`}
-          >
-            <span className="text-[10px] opacity-70 uppercase">Day {idx + 1}</span>
-            <span className="text-sm">{new Date(day.date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-[2rem] shadow-xl p-6 sm:p-10 min-h-[500px] border border-slate-50">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-          <div>
-            <h3 className="text-2xl font-black text-slate-800">第 {activeDayIndex + 1} 天行程</h3>
-            <div className="flex items-center mt-1 space-x-3">
-              <span className="text-slate-400 text-sm font-medium">當日支出：</span>
-              <span className="text-emerald-600 text-sm font-black">{tripData.currency} {dailyTotal.toLocaleString()}</span>
-            </div>
-          </div>
-          <button onClick={handleAddSpot} className="flex items-center px-6 py-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all text-sm font-black shadow-lg">
-            <Plus className="w-5 h-5 mr-1" /> 新增景點
-          </button>
+      <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCenter} 
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex space-x-2 overflow-x-auto pb-4 mb-6 no-scrollbar items-center">
+          {tripData.days.map((day, idx) => (
+            <DroppableDayTab 
+              key={day.date}
+              dayIndex={idx}
+              date={day.date}
+              isActive={activeDayIndex === idx}
+              onClick={() => setActiveDayIndex(idx)}
+            />
+          ))}
         </div>
 
-        {activeDay.spots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-50 rounded-[2rem] text-slate-300 font-bold">
-            <MapPin className="w-12 h-12 opacity-20 mb-4" />
-            <p>點擊右上方按鈕開始紀錄回憶與開銷</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {activeDay.spots.map((spot) => (
-              <div key={spot.id} onClick={() => handleEditSpot(spot)} className="group bg-slate-50 border border-slate-100 rounded-[1.5rem] p-5 cursor-pointer hover:shadow-xl transition-all hover:bg-white hover:border-blue-200">
-                <div className="flex items-start">
-                  <div className="hidden sm:flex flex-col items-center justify-center w-24 pr-4 border-r border-slate-200 mr-6 shrink-0">
-                    <span className="text-xs font-black text-blue-600">{spot.startTime || '--:--'}</span>
-                    <div className="h-4 w-0.5 bg-blue-100 my-1"></div>
-                    <span className="text-[10px] font-bold text-slate-400">{spot.endTime || '--:--'}</span>
-                  </div>
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-black text-lg text-slate-800 truncate">{spot.name}</h4>
-                      {spot.expense && spot.expense.actual > 0 && (
-                        <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-xs font-black">
-                          {tripData.currency} {spot.expense.actual.toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center">
-                      <Edit3 className="w-3 h-3 mr-1" /> 編輯紀錄
-                    </div>
-                  </div>
-                </div>
+        <div className="bg-white rounded-[2rem] shadow-xl p-6 sm:p-10 min-h-[500px] border border-slate-50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+            <div>
+              <h3 className="text-2xl font-black text-slate-800">第 {activeDayIndex + 1} 天行程</h3>
+              <div className="flex items-center mt-1 space-x-3">
+                <span className="text-slate-400 text-sm font-medium">當日支出：</span>
+                <span className="text-emerald-600 text-sm font-black">{tripData.currency} {dailyTotal.toLocaleString()}</span>
               </div>
-            ))}
+            </div>
+            <button onClick={handleAddSpot} className="flex items-center px-6 py-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all text-sm font-black shadow-lg">
+              <Plus className="w-5 h-5 mr-1" /> 新增景點
+            </button>
           </div>
-        )}
-      </div>
+
+          {activeDay.spots.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-50 rounded-[2rem] text-slate-300 font-bold">
+              <MapPin className="w-12 h-12 opacity-20 mb-4" />
+              <p>點擊右上方按鈕開始紀錄回憶與開銷</p>
+            </div>
+          ) : (
+            <SortableContext 
+              items={spotIds} 
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-6">
+                {activeDay.spots.map((spot) => (
+                  <SortableSpotItem 
+                    key={spot.id} 
+                    spot={spot} 
+                    currency={tripData.currency} 
+                    onClick={() => handleEditSpot(spot)} 
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          )}
+        </div>
+
+        <DragOverlay>
+          {activeSpotData ? (
+             <div className="bg-white border-2 border-blue-500 rounded-[1.5rem] p-5 shadow-2xl opacity-90 cursor-grabbing rotate-2 scale-105">
+                <div className="flex items-center">
+                  <div className="mr-3 text-blue-500"><GripVertical className="w-5 h-5" /></div>
+                  <h4 className="font-black text-lg text-slate-800">{activeSpotData.name}</h4>
+                </div>
+             </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {showModal && editingSpot && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in">
