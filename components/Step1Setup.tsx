@@ -101,7 +101,19 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
         }
       });
 
-      const generatedDays = JSON.parse(response.text || '[]');
+      let responseText = response.text || '[]';
+      // Clean potential Markdown code blocks
+      responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      let generatedDays;
+      try {
+        generatedDays = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.log('Raw text:', responseText);
+        throw new Error('AI 回傳資料格式有誤，請稍後再試。');
+      }
+
       const processedDays = generatedDays.map((day: any) => ({
         ...day,
         spots: day.spots.map((spot: any) => ({
@@ -115,7 +127,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
       onNext();
     } catch (error) {
       console.error('AI generation failed:', error);
-      alert('AI 規劃失敗，請檢查網路。');
+      alert('AI 規劃失敗，請檢查網路或稍後再試。');
     } finally {
       setIsGenerating(false);
     }
