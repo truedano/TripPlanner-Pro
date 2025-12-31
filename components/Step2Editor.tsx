@@ -38,11 +38,11 @@ interface DroppableDayTabProps {
 }
 
 // 可拖曳的日期分頁 (Droppable Tab)
-const DroppableDayTab: React.FC<DroppableDayTabProps> = ({ 
-  dayIndex, 
-  date, 
-  isActive, 
-  onClick 
+const DroppableDayTab: React.FC<DroppableDayTabProps> = ({
+  dayIndex,
+  date,
+  isActive,
+  onClick
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-tab-${dayIndex}`,
@@ -54,13 +54,12 @@ const DroppableDayTab: React.FC<DroppableDayTabProps> = ({
       type="button"
       ref={setNodeRef}
       onClick={onClick}
-      className={`relative px-6 py-3 rounded-2xl font-black transition-all flex flex-col items-center flex-shrink-0 ${
-        isActive 
-          ? 'bg-blue-600 text-white shadow-xl -translate-y-1' 
-          : isOver 
-            ? 'bg-blue-100 text-blue-600 border-2 border-blue-300 scale-105' 
-            : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200'
-      }`}
+      className={`relative px-6 py-3 rounded-2xl font-black transition-all flex flex-col items-center flex-shrink-0 ${isActive
+        ? 'bg-blue-600 text-white shadow-xl -translate-y-1'
+        : isOver
+          ? 'bg-blue-100 text-blue-600 border-2 border-blue-300 scale-105'
+          : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200'
+        }`}
     >
       <span className="text-[10px] opacity-70 uppercase">Day {dayIndex + 1}</span>
       <span className="text-sm">{new Date(date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}</span>
@@ -75,10 +74,10 @@ interface SortableSpotItemProps {
 }
 
 // 可排序的景點卡片 (Sortable Spot Item)
-const SortableSpotItem: React.FC<SortableSpotItemProps> = ({ 
-  spot, 
-  currency, 
-  onClick 
+const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
+  spot,
+  currency,
+  onClick
 }) => {
   const {
     attributes,
@@ -100,23 +99,22 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className="group bg-slate-50 border border-slate-100 rounded-[1.5rem] p-5 hover:shadow-xl transition-all hover:bg-white hover:border-blue-200"
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="group bg-slate-50 border border-slate-100 rounded-[1.5rem] p-5 hover:shadow-xl transition-all hover:bg-white hover:border-blue-200 cursor-grab active:cursor-grabbing touch-none select-none"
     >
       <div className="flex items-start">
-        {/* 拖曳手柄 - 獨立區域 */}
-        <div 
-          {...attributes} 
-          {...listeners} 
-          className="self-center mr-3 p-3 -ml-2 text-slate-300 cursor-grab hover:text-slate-500 active:cursor-grabbing touch-none"
-          style={{ touchAction: 'none' }}
+        {/* 拖曳手柄 - 僅作為視覺提示 */}
+        <div
+          className="self-center mr-3 p-3 -ml-2 text-slate-300 group-hover:text-blue-400 transition-colors"
         >
           <GripVertical className="w-5 h-5" />
         </div>
 
-        <div onClick={onClick} className="flex flex-grow items-start cursor-pointer">
+        <div onClick={onClick} className="flex flex-grow items-start">
           <div className="hidden sm:flex flex-col items-center justify-center w-24 pr-4 border-r border-slate-200 mr-6 shrink-0">
             <span className="text-xs font-black text-blue-600">{spot.startTime || '--:--'}</span>
             <div className="h-4 w-0.5 bg-blue-100 my-1"></div>
@@ -147,20 +145,19 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
-  
+
   const albumInputRef = useRef<HTMLInputElement>(null);
 
   // DnD Sensors Configuration
-  // 改用 MouseSensor 和 TouchSensor 以獲得更好的相容性
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8, // 滑鼠需移動 8px 才會開始拖曳，避免點擊誤觸
+        distance: 10, // 滑鼠需移動 10px 才會開始拖曳，避免與點擊編輯衝突
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150, // 觸控需按住 150ms 才會開始拖曳，避免與捲動衝突
+        delay: 250, // 觸控需按住 250ms 才會開始拖曳
         tolerance: 5,
       },
     }),
@@ -171,14 +168,14 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   // 1. 安全地取得 activeDay (可能為 undefined)
   const activeDay = (tripData.days && tripData.days.length > 0) ? tripData.days[activeDayIndex] : undefined;
-  
-  // 2. 準備 useMemo 所需的資料，若 activeDay 不存在則給空陣列
+
+  // 2. 準備 useMemo 所需的資料
   const activeDaySpots = activeDay ? activeDay.spots : [];
-  
+
   // 3. 在任何 return 之前呼叫 useMemo
   const spotIds = useMemo(() => activeDaySpots.map(s => s.id), [activeDaySpots]);
 
-  // 4. 現在可以安全地進行條件回傳
+  // 4. 安全地進行條件回傳
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
 
   const dailyTotal = activeDay.spots.reduce((sum, spot) => sum + (spot.expense?.actual || 0), 0);
@@ -199,22 +196,18 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     // 情境 1: 跨天移動 (拖曳到日期 Tab)
     if (overId.startsWith('day-tab-')) {
       const targetDayIndex = parseInt(overId.replace('day-tab-', ''), 10);
-      
-      // 如果目標不是當前天
+
       if (targetDayIndex !== activeDayIndex) {
         const newDays = [...tripData.days];
         const sourceSpots = [...newDays[activeDayIndex].spots];
         const targetSpots = [...newDays[targetDayIndex].spots];
-        
+
         const spotIndex = sourceSpots.findIndex(s => s.id === activeSpotId);
         if (spotIndex !== -1) {
           const [movedSpot] = sourceSpots.splice(spotIndex, 1);
-          // 將景點加到目標天數的最後
           targetSpots.push(movedSpot);
-          
           newDays[activeDayIndex] = { ...newDays[activeDayIndex], spots: sourceSpots };
           newDays[targetDayIndex] = { ...newDays[targetDayIndex], spots: targetSpots };
-          
           onUpdate({ days: newDays });
         }
       }
@@ -250,9 +243,9 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   };
 
   const handleEditSpot = (spot: Spot) => {
-    setEditingSpot({ 
-      ...spot, 
-      expense: spot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER } 
+    setEditingSpot({
+      ...spot,
+      expense: spot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }
     });
     setShowModal(true);
   };
@@ -296,15 +289,15 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <DndContext 
-        sensors={sensors} 
-        collisionDetection={closestCenter} 
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <div className="flex space-x-2 overflow-x-auto pb-4 mb-6 no-scrollbar items-center">
           {tripData.days.map((day, idx) => (
-            <DroppableDayTab 
+            <DroppableDayTab
               key={day.date}
               dayIndex={idx}
               date={day.date}
@@ -334,17 +327,17 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
               <p>點擊右上方按鈕開始紀錄回憶與開銷</p>
             </div>
           ) : (
-            <SortableContext 
-              items={spotIds} 
+            <SortableContext
+              items={spotIds}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-6">
                 {activeDay.spots.map((spot) => (
-                  <SortableSpotItem 
-                    key={spot.id} 
-                    spot={spot} 
-                    currency={tripData.currency} 
-                    onClick={() => handleEditSpot(spot)} 
+                  <SortableSpotItem
+                    key={spot.id}
+                    spot={spot}
+                    currency={tripData.currency}
+                    onClick={() => handleEditSpot(spot)}
                   />
                 ))}
               </div>
@@ -354,12 +347,20 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
         <DragOverlay>
           {activeSpotData ? (
-             <div className="bg-white border-2 border-blue-500 rounded-[1.5rem] p-5 shadow-2xl opacity-90 cursor-grabbing rotate-2 scale-105">
-                <div className="flex items-center">
-                  <div className="mr-3 text-blue-500"><GripVertical className="w-5 h-5" /></div>
+            <div className="bg-white border-2 border-blue-500 rounded-[1.5rem] p-5 shadow-2xl opacity-90 cursor-grabbing rotate-2 scale-105">
+              <div className="flex items-start">
+                <div className="mr-3 text-blue-500 pt-1"><GripVertical className="w-5 h-5" /></div>
+                <div>
+                  <div className="text-xs font-black text-blue-500 mb-1">{activeSpotData.startTime} - {activeSpotData.endTime}</div>
                   <h4 className="font-black text-lg text-slate-800">{activeSpotData.name}</h4>
+                  {activeSpotData.expense && activeSpotData.expense.actual > 0 && (
+                    <div className="mt-1 text-xs font-black text-emerald-600 bg-emerald-50 inline-block px-2 py-0.5 rounded-md">
+                      {tripData.currency} {activeSpotData.expense.actual.toLocaleString()}
+                    </div>
+                  )}
                 </div>
-             </div>
+              </div>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -371,25 +372,25 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
               <h3 className="text-2xl font-black text-slate-800">編輯景點與支出</h3>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-full"><X className="w-6 h-6 text-slate-400" /></button>
             </div>
-            
+
             <form onSubmit={saveSpot} className="p-8 space-y-8 overflow-y-auto flex-grow custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">景點名稱</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={editingSpot.name} 
-                      onChange={e => setEditingSpot({ ...editingSpot, name: e.target.value })} 
-                      className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700" 
+                    <input
+                      required
+                      type="text"
+                      value={editingSpot.name}
+                      onChange={e => setEditingSpot({ ...editingSpot, name: e.target.value })}
+                      className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <input type="time" value={editingSpot.startTime} onChange={e => setEditingSpot({ ...editingSpot, startTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
                     <input type="time" value={editingSpot.endTime} onChange={e => setEditingSpot({ ...editingSpot, endTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
                   </div>
-                  
+
                   <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100">
                     <div className="flex items-center space-x-2 text-slate-400 mb-2">
                       <Wallet className="w-4 h-4" />
@@ -407,12 +408,12 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     </div>
                   </div>
 
-                  <textarea 
-                    rows={3} 
-                    placeholder="貼心筆記..." 
-                    value={editingSpot.notes} 
-                    onChange={e => setEditingSpot({ ...editingSpot, notes: e.target.value })} 
-                    className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-medium text-slate-700 resize-none" 
+                  <textarea
+                    rows={3}
+                    placeholder="貼心筆記..."
+                    value={editingSpot.notes}
+                    onChange={e => setEditingSpot({ ...editingSpot, notes: e.target.value })}
+                    className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-medium text-slate-700 resize-none"
                   />
                 </div>
 
@@ -428,16 +429,16 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                       {editingSpot.images?.map((img, i) => (
                         <div key={i} className="flex space-x-3 bg-white p-3 rounded-xl border border-slate-100">
                           <img src={img.url} className="w-12 h-12 rounded-lg object-cover" />
-                          <input 
-                            type="text" 
-                            placeholder="描述..." 
-                            value={img.caption} 
+                          <input
+                            type="text"
+                            placeholder="描述..."
+                            value={img.caption}
                             onChange={e => {
                               const newImg = [...(editingSpot.images || [])];
                               newImg[i].caption = e.target.value;
-                              setEditingSpot({...editingSpot, images: newImg});
-                            }} 
-                            className="flex-grow text-xs font-medium outline-none" 
+                              setEditingSpot({ ...editingSpot, images: newImg });
+                            }}
+                            className="flex-grow text-xs font-medium outline-none"
                           />
                         </div>
                       ))}
