@@ -80,7 +80,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
