@@ -331,7 +331,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
       name: '',
       startTime: isToday ? getCurrentTime() : '',
       endTime: '',
-      notes: '',
+      notes: [],
       mapUrl: '',
       images: [],
       expenses: []
@@ -349,7 +349,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const handleEditSpot = (spot: Spot) => {
     setEditingSpot({
       ...spot,
-      expenses: spot.expenses || []
+      expenses: spot.expenses || [],
+      notes: Array.isArray(spot.notes) ? spot.notes : []
     });
     setEditingImages((spot.images || []).map(img => ({ ...img, internalId: crypto.randomUUID() })));
     setShowModal(true);
@@ -385,6 +386,24 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     if (!editingSpot) return;
     handleSpotChange({
       expenses: editingSpot.expenses.map(e => e.id === id ? { ...e, ...updates } : e)
+    });
+  };
+
+  const addNoteItem = () => {
+    if (!editingSpot) return;
+    const newItem = { id: crypto.randomUUID(), content: '' };
+    handleSpotChange({ notes: [...(editingSpot.notes || []), newItem] });
+  };
+
+  const removeNoteItem = (id: string) => {
+    if (!editingSpot) return;
+    handleSpotChange({ notes: editingSpot.notes.filter(n => n.id !== id) });
+  };
+
+  const updateNoteItem = (id: string, content: string) => {
+    if (!editingSpot) return;
+    handleSpotChange({
+      notes: editingSpot.notes.map(n => n.id === id ? { ...n, content } : n)
     });
   };
 
@@ -562,13 +581,46 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     </div>
                   </div>
 
-                  <textarea
-                    rows={3}
-                    placeholder="貼心筆記..."
-                    value={editingSpot.notes}
-                    onChange={e => handleSpotChange({ notes: e.target.value })}
-                    className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-medium text-slate-700 resize-none"
-                  />
+                  <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100 mt-6">
+                    <div className="flex items-center justify-between text-slate-400 mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Edit3 className="w-4 h-4" />
+                        <span className="text-xs font-black uppercase tracking-widest">貼心筆記</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addNoteItem}
+                        className="text-blue-600 text-[10px] font-black hover:underline flex items-center bg-white px-2 py-1 rounded-lg border border-slate-100"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />新增筆記
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {editingSpot.notes?.map((note) => (
+                        <div key={note.id} className="flex items-start space-x-2 animate-in slide-in-from-left-2 duration-200">
+                          <textarea
+                            rows={2}
+                            placeholder="輸入筆記..."
+                            value={note.content}
+                            onChange={e => updateNoteItem(note.id, e.target.value)}
+                            className="flex-grow px-4 py-3 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-blue-400 resize-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeNoteItem(note.id)}
+                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors mt-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {(!editingSpot.notes || editingSpot.notes.length === 0) && (
+                        <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-300 text-[10px] font-bold">
+                          尚無筆記內容
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-6">

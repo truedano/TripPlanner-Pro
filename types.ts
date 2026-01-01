@@ -19,12 +19,17 @@ export interface ExpenseItem {
   amount: number;
 }
 
+export interface NoteItem {
+  id: string;
+  content: string;
+}
+
 export interface Spot {
   id: string;
   name: string;
   startTime: string;
   endTime: string;
-  notes: string;
+  notes: NoteItem[];
   mapUrl: string;
   images?: SpotImage[];
   expenses: ExpenseItem[];
