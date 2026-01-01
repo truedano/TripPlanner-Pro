@@ -17,8 +17,14 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
         if (isOpen) {
             const stored = ApiKeyManager.get();
             if (stored) setKey(stored);
+
+            const handleEsc = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') onClose();
+            };
+            window.addEventListener('keydown', handleEsc);
+            return () => window.removeEventListener('keydown', handleEsc);
         }
-    }, [isOpen]);
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -41,8 +47,14 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+        <div
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100"
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                     <div className="flex items-center space-x-2 text-slate-800">
                         <div className="p-2 bg-blue-100 rounded-xl text-blue-600">

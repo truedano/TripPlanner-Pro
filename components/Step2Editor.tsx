@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { TripData, Spot, SpotImage, SpotType, ExpenseCategory, ExpenseItem } from '../types';
 import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle, Utensils } from 'lucide-react';
 import { ModernModal } from './ModernModal';
@@ -251,6 +251,17 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  // Esc Key Support for Modal
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowModal(false);
+    };
+    if (showModal) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showModal]);
 
   // Data helpers
   const activeDay = (tripData.days && tripData.days.length > 0) ? tripData.days[activeDayIndex] : undefined;
@@ -662,8 +673,14 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
       </DndContext>
 
       {showModal && editingSpot && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="p-8 border-b border-slate-100 flex justify-between items-center">
               <h3 className="text-2xl font-black text-slate-800">
                 {editingSpot.type === SpotType.TRANSPORT ? '交通紀錄' : editingSpot.type === SpotType.STAY ? '住宿紀錄' : editingSpot.type === SpotType.MEAL ? '伙食紀錄' : '景點規劃'}

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export type ModalType = 'confirm' | 'alert' | 'success' | 'warning';
@@ -27,6 +27,19 @@ export const ModernModal: React.FC<ModernModalProps> = ({
     onCancel,
     showCancel = true
 }) => {
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (onCancel) onCancel();
+                else onConfirm();
+            }
+        };
+        if (isOpen) {
+            window.addEventListener('keydown', handleEsc);
+        }
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [isOpen, onCancel, onConfirm]);
+
     if (!isOpen) return null;
 
     const config = {
