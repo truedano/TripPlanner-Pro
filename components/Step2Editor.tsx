@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { TripData, Spot, SpotImage, ExpenseCategory } from '../types';
-import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2 } from 'lucide-react';
+import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock } from 'lucide-react';
 import { compressImage } from '../utils/image';
 import {
   DndContext,
@@ -234,7 +234,13 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
 
+  const getCurrentTime = () => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  };
+
   const dailyTotal = activeDay.spots.reduce((sum, spot) => sum + (spot.expense?.actual || 0), 0);
+
 
   // Sync Logic
   const syncSpotToParent = (updatedSpot: Spot) => {
@@ -311,16 +317,17 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     if (over && active.id !== over.id) {
       const oldIndex = editingImages.findIndex((i) => i.internalId === active.id);
       const newIndex = editingImages.findIndex((i) => i.internalId === over.id);
-      const reordered = arrayMove(editingImages, oldIndex, newIndex);
+      const reordered = arrayMove<IdentifiableSpotImage>(editingImages, oldIndex, newIndex);
       updateImages(reordered);
     }
   };
 
   const handleAddSpot = () => {
+    const isToday = new Date().toISOString().split('T')[0] === activeDay.date;
     const newSpot: Spot = {
       id: crypto.randomUUID(),
       name: '',
-      startTime: '',
+      startTime: isToday ? getCurrentTime() : '',
       endTime: '',
       notes: '',
       mapUrl: '',
@@ -469,8 +476,28 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <input type="time" value={editingSpot.startTime} onChange={e => handleSpotChange({ startTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
-                    <input type="time" value={editingSpot.endTime} onChange={e => handleSpotChange({ endTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
+                    <div className="relative group">
+                      <input type="time" value={editingSpot.startTime} onChange={e => handleSpotChange({ startTime: e.target.value })} className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-12" />
+                      <button
+                        type="button"
+                        onClick={() => handleSpotChange({ startTime: getCurrentTime() })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-blue-500 transition-colors"
+                        title="設為現在時間"
+                      >
+                        <Clock className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="relative group">
+                      <input type="time" value={editingSpot.endTime} onChange={e => handleSpotChange({ endTime: e.target.value })} className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-12" />
+                      <button
+                        type="button"
+                        onClick={() => handleSpotChange({ endTime: getCurrentTime() })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-blue-500 transition-colors"
+                        title="設為現在時間"
+                      >
+                        <Clock className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100">
