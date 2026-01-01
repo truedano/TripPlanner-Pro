@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TripData, DayPlan, ExpenseCategory } from '../types';
-import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info } from 'lucide-react';
+import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info, Save } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ApiKeyManager } from '../utils/apiKeyManager';
 import { ModalType } from './ModernModal';
@@ -10,7 +10,7 @@ interface Props {
   tripData: TripData;
   onUpdate: (updates: Partial<TripData>) => void;
   onNext: () => void;
-  showAlert: (title: string, message: string, type?: ModalType) => void;
+  showAlert: (title: string, message: string, type?: ModalType, onConfirm?: () => void) => void;
 }
 
 export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAlert }) => {
@@ -29,15 +29,27 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
     if (!isValid) return;
     const start = new Date(tripData.startDate);
     const end = new Date(tripData.endDate);
-    const days: DayPlan[] = [];
+
+    // 智慧同步：保留現有的天數資料（如果日期重合的話）
+    const existingDaysMap = new Map();
+    (tripData.days || []).forEach(day => {
+      existingDaysMap.set(day.date, day);
+    });
+
+    const newDays: DayPlan[] = [];
     let current = new Date(start);
     while (current <= end) {
       const dateStr = current.toISOString().split('T')[0];
-      days.push({ date: dateStr, spots: [] });
+      if (existingDaysMap.has(dateStr)) {
+        newDays.push(existingDaysMap.get(dateStr));
+      } else {
+        newDays.push({ date: dateStr, spots: [] });
+      }
       current.setDate(current.getDate() + 1);
     }
+
     // 在送出前更新一次全域狀態
-    onUpdate({ name: localName, days });
+    onUpdate({ name: localName, days: newDays });
     onNext();
   };
 
@@ -239,7 +251,13 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
 
           <div className="pt-4 space-y-4">
             <button
-              onClick={generateAIPlan}
+              onClick={() => {
+                if (tripData.days && tripData.days.length > 0) {
+                  showAlert('重新產生行程？', '這將會覆蓋您目前的行程紀錄且無法還原，確定要重新產生嗎？', 'confirm', generateAIPlan);
+                } else {
+                  generateAIPlan();
+                }
+              }}
               disabled={!isValid || isGenerating}
               className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center space-x-2 transition-all shadow-lg ${isValid ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02]' : 'bg-slate-100 text-slate-300'
                 }`}
@@ -249,11 +267,22 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
             <button
               onClick={handleManualSetup}
               disabled={!isValid || isGenerating}
-              className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center space-x-2 transition-all ${isValid ? 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' : 'bg-slate-50 text-slate-200'
+              className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center space-x-2 transition-all shadow-lg ${isValid
+                ? (tripData.days && tripData.days.length > 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50')
+                : 'bg-slate-50 text-slate-200'
                 }`}
             >
-              <span>手動建立行程框架</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
+              {tripData.days && tripData.days.length > 0 ? (
+                <>
+                  <Save className="w-5 h-5 mr-1" />
+                  <span>儲存並進入行程編輯</span>
+                </>
+              ) : (
+                <>
+                  <span>手動建立行程框架</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </>
+              )}
             </button>
           </div>
         </div>

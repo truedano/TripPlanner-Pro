@@ -155,13 +155,16 @@ const App: React.FC = () => {
     });
   };
 
-  const showAlert = (title: string, message: string, type: ModalType = 'alert') => {
+  const showAlert = (title: string, message: string, type: ModalType = 'alert', onConfirm?: () => void) => {
     setModalConfig({
       isOpen: true,
       type,
       title,
       message,
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      onConfirm: () => {
+        onConfirm?.();
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+      }
     });
   };
 
