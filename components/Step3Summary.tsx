@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { TripData } from '../types';
-import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, ListOrdered } from 'lucide-react';
+import { TripData, SpotType } from '../types';
+import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, ListOrdered, MapPin, Car, Bed } from 'lucide-react';
 
 interface Props {
   tripData: TripData;
@@ -175,44 +175,64 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
                 <h3 className="text-sm font-black text-slate-300 uppercase tracking-[0.4em]">{day.date}</h3>
               </div>
               <div className={viewMode === 'journal' ? 'space-y-20' : 'space-y-6'}>
-                {day.spots.map((spot) => (
-                  <div key={spot.id} className={`${viewMode === 'journal' ? 'max-w-4xl mx-auto' : 'bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm'}`}>
-                    <div className="flex flex-col md:flex-row gap-6">
-                      <div className="flex-grow">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center text-blue-400 font-black text-[10px] uppercase tracking-widest">
-                            <Clock className="w-3 h-3 mr-1" />
-                            <span>{spot.startTime} — {spot.endTime}</span>
+                {day.spots.map((spot) => {
+                  const CategoryIcon = {
+                    [SpotType.SPOT]: MapPin,
+                    [SpotType.TRANSPORT]: Car,
+                    [SpotType.STAY]: Bed
+                  }[spot.type || SpotType.SPOT] || MapPin;
+
+                  const categoryTheme = {
+                    [SpotType.SPOT]: { color: 'text-blue-500', bg: 'bg-blue-50', label: '景點' },
+                    [SpotType.TRANSPORT]: { color: 'text-orange-500', bg: 'bg-orange-50', label: '交通' },
+                    [SpotType.STAY]: { color: 'text-purple-500', bg: 'bg-purple-50', label: '住宿' }
+                  }[spot.type || SpotType.SPOT] || { color: 'text-blue-500', bg: 'bg-blue-50', label: '景點' };
+
+                  return (
+                    <div key={spot.id} className={`${viewMode === 'journal' ? 'max-w-4xl mx-auto' : 'bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm'}`}>
+                      <div className="flex flex-col md:flex-row gap-6">
+                        <div className="flex-grow">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                              <div className={`flex items-center px-3 py-1 rounded-full ${categoryTheme.bg} ${categoryTheme.color} text-[10px] font-black uppercase tracking-widest`}>
+                                <CategoryIcon className="w-3 h-3 mr-1" />
+                                <span>{categoryTheme.label}</span>
+                              </div>
+                              <div className="flex items-center text-slate-400 font-black text-[10px] uppercase tracking-widest">
+                                <Clock className="w-3 h-3 mr-1" />
+                                <span>{spot.startTime} — {spot.endTime}</span>
+                              </div>
+                            </div>
+                            {spot.expenses && spot.expenses.length > 0 && (
+                              <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                                {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                              </div>
+                            )}
                           </div>
-                          {spot.expenses && spot.expenses.length > 0 && (
-                            <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                              {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                          <h4 className={`text-slate-900 font-black tracking-tight leading-tight mb-4 ${viewMode === 'journal' ? 'text-4xl font-serif italic' : 'text-2xl'}`}>{spot.name || '未命名項目'}</h4>
+                          {spot.notes && (Array.isArray(spot.notes) ? spot.notes.length > 0 : typeof spot.notes === 'string' && spot.notes.trim() !== '') && (
+                            <div className="text-slate-500 italic mb-6 space-y-2 border-l-2 border-slate-100 pl-4">
+                              {Array.isArray(spot.notes) ? (
+                                spot.notes.map(note => (
+                                  <p key={note.id} className="text-sm">"{note.content}"</p>
+                                ))
+                              ) : (
+                                <p className="text-sm">"{spot.notes}"</p>
+                              )}
                             </div>
                           )}
                         </div>
-                        <h4 className={`text-slate-900 font-black tracking-tight leading-tight mb-4 ${viewMode === 'journal' ? 'text-4xl font-serif italic' : 'text-2xl'}`}>{spot.name || '未命名項目'}</h4>
-                        {spot.notes && (Array.isArray(spot.notes) ? spot.notes.length > 0 : typeof spot.notes === 'string' && spot.notes.trim() !== '') && (
-                          <div className="text-slate-500 italic mb-6 space-y-2 border-l-2 border-slate-100 pl-4">
-                            {Array.isArray(spot.notes) ? (
-                              spot.notes.map(note => (
-                                <p key={note.id} className="text-sm">"{note.content}"</p>
-                              ))
-                            ) : (
-                              <p className="text-sm">"{spot.notes}"</p>
-                            )}
+                        {spot.images && spot.images.length > 0 && (
+                          <div className="md:w-1/3 grid grid-cols-2 gap-2">
+                            {spot.images.slice(0, 2).map((img, i) => (
+                              <img key={i} src={img.url} className="w-full aspect-square object-cover rounded-xl" alt={img.caption || 'spot image'} />
+                            ))}
                           </div>
                         )}
                       </div>
-                      {spot.images && spot.images.length > 0 && (
-                        <div className="md:w-1/3 grid grid-cols-2 gap-2">
-                          {spot.images.slice(0, 2).map((img, i) => (
-                            <img key={i} src={img.url} className="w-full aspect-square object-cover rounded-xl" alt={img.caption || 'spot image'} />
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
