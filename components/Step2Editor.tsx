@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { TripData, Spot, SpotImage, ExpenseCategory } from '../types';
-import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock } from 'lucide-react';
+import { TripData, Spot, SpotImage, SpotType, ExpenseCategory } from '../types';
+import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle } from 'lucide-react';
 import { compressImage } from '../utils/image';
 import {
   DndContext,
@@ -75,13 +75,15 @@ interface SortableSpotItemProps {
   spot: Spot;
   currency?: string;
   onClick: () => void;
+  onDelete: () => void;
 }
 
 // 可排序的景點卡片 (Sortable Spot Item)
 const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
   spot,
   currency,
-  onClick
+  onClick,
+  onDelete
 }) => {
   const {
     attributes,
@@ -93,14 +95,22 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
   } = useSortable({ id: spot.id });
 
   const style = {
-    // 使用 Translate 而非 Transform，避免縮放時的副作用，提升排序穩定度
     transform: CSS.Translate.toString(transform),
     transition,
     zIndex: isDragging ? 50 : 'auto',
     opacity: isDragging ? 0.3 : 1,
-    // 雖然 CSS class 有 touch-none，這裡強制加 style 確保生效
     touchAction: 'none'
   };
+
+  const typeStyles = {
+    [SpotType.SPOT]: { icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', label: '景點' },
+    [SpotType.TRANSPORT]: { icon: Car, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', label: '交通' },
+    [SpotType.STAY]: { icon: Bed, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', label: '住宿' },
+  };
+
+  const currentType = spot.type || SpotType.SPOT;
+  const styleConfig = typeStyles[currentType];
+  const Icon = styleConfig.icon;
 
   return (
     <div
@@ -108,33 +118,44 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
       style={style}
       {...attributes}
       {...listeners}
-      className="group bg-slate-50 border border-slate-100 rounded-[1.5rem] p-5 hover:shadow-xl transition-all hover:bg-white hover:border-blue-200 cursor-grab active:cursor-grabbing touch-none select-none"
+      className={`group border rounded-[1.5rem] p-5 hover:shadow-xl transition-all hover:bg-white cursor-grab active:cursor-grabbing touch-none select-none ${styleConfig.bg} ${styleConfig.border} hover:border-blue-200`}
     >
       <div className="flex items-start">
-        {/* 拖曳手柄 - 僅作為視覺提示 */}
-        <div
-          className="self-center mr-3 p-3 -ml-2 text-slate-300 group-hover:text-blue-400 transition-colors"
-        >
+        <div className="self-center mr-3 p-3 -ml-2 text-slate-300 group-hover:text-blue-400 transition-colors">
           <GripVertical className="w-5 h-5" />
         </div>
 
         <div onClick={onClick} className="flex flex-grow items-start">
           <div className="hidden sm:flex flex-col items-center justify-center w-24 pr-4 border-r border-slate-200 mr-6 shrink-0">
-            <span className="text-xs font-black text-blue-600">{spot.startTime || '--:--'}</span>
-            <div className="h-4 w-0.5 bg-blue-100 my-1"></div>
+            <span className={`text-xs font-black ${styleConfig.color}`}>{spot.startTime || '--:--'}</span>
+            <div className={`h-4 w-0.5 my-1 opacity-30 ${styleConfig.bg.replace('bg-', 'bg-')}`}></div>
             <span className="text-[10px] font-bold text-slate-400">{spot.endTime || '--:--'}</span>
           </div>
           <div className="flex-grow">
             <div className="flex justify-between items-start mb-2">
-              <h4 className="font-black text-lg text-slate-800 truncate">{spot.name}</h4>
+              <div className="flex flex-col">
+                <span className={`text-[10px] font-black uppercase tracking-tighter mb-1 ${styleConfig.color}`}>{styleConfig.label}</span>
+                <h4 className="font-black text-lg text-slate-800 truncate">{spot.name || `未命名${styleConfig.label}`}</h4>
+              </div>
               {spot.expenses && spot.expenses.length > 0 && (
                 <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-xs font-black">
                   {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                 </div>
               )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="ml-2 p-2 text-slate-300 hover:text-red-500 transition-colors rounded-full hover:bg-slate-100/50"
+                title="刪除紀錄"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
             <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center">
-              <Edit3 className="w-3 h-3 mr-1" /> 編輯紀錄
+              <Icon className="w-3 h-3 mr-1" /> 編輯詳細
             </div>
             {spot.images && spot.images.length > 0 && (
               <div className="flex items-center space-x-2 mt-3 overflow-x-auto no-scrollbar">
@@ -208,6 +229,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
   const [editingImages, setEditingImages] = useState<IdentifiableSpotImage[]>([]);
+  const [activeCategory, setActiveCategory] = useState<SpotType>(SpotType.SPOT);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
 
@@ -230,6 +253,12 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   // Data helpers
   const activeDay = (tripData.days && tripData.days.length > 0) ? tripData.days[activeDayIndex] : undefined;
   const activeDaySpots = activeDay ? activeDay.spots : [];
+
+  // Grouping logic
+  const groupSpots = activeDaySpots.filter(s => !s.type || s.type === SpotType.SPOT);
+  const groupTransport = activeDaySpots.filter(s => s.type === SpotType.TRANSPORT);
+  const groupStay = activeDaySpots.filter(s => s.type === SpotType.STAY);
+
   const spotIds = useMemo(() => activeDaySpots.map(s => s.id), [activeDaySpots]);
 
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
@@ -324,10 +353,11 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     }
   };
 
-  const handleAddSpot = () => {
+  const handleAddSpot = (type: SpotType = SpotType.SPOT) => {
     const isToday = new Date().toISOString().split('T')[0] === activeDay.date;
     const newSpot: Spot = {
       id: crypto.randomUUID(),
+      type,
       name: '',
       startTime: isToday ? getCurrentTime() : '',
       endTime: '',
@@ -354,6 +384,19 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     });
     setEditingImages((spot.images || []).map(img => ({ ...img, internalId: crypto.randomUUID() })));
     setShowModal(true);
+  };
+
+  const handleDeleteSpot = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    const updatedDays = [...tripData.days];
+    const spots = updatedDays[activeDayIndex].spots.filter(s => s.id !== deleteId);
+    updatedDays[activeDayIndex] = { ...updatedDays[activeDayIndex], spots };
+    onUpdate({ days: updatedDays });
+    setDeleteId(null);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -430,41 +473,133 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
         </div>
 
         <div className="bg-white rounded-[2rem] shadow-xl p-6 sm:p-10 min-h-[500px] border border-slate-50">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-slate-50 pb-6">
             <div>
-              <h3 className="text-2xl font-black text-slate-800">第 {activeDayIndex + 1} 天行程</h3>
+              <h3 className="text-2xl font-black text-slate-800">第 {activeDayIndex + 1} 天紀錄</h3>
               <div className="flex items-center mt-1 space-x-3">
-                <span className="text-slate-400 text-sm font-medium">當日支出：</span>
+                <span className="text-slate-400 text-sm font-medium">當日總支出：</span>
                 <span className="text-emerald-600 text-sm font-black">{tripData.currency} {dailyTotal.toLocaleString()}</span>
               </div>
             </div>
-            <button onClick={handleAddSpot} className="flex items-center px-6 py-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all text-sm font-black shadow-lg">
-              <Plus className="w-5 h-5 mr-1" /> 新增景點
+            <button
+              onClick={() => handleAddSpot(activeCategory)}
+              className={`w-full sm:w-auto flex items-center justify-center px-6 py-4 sm:py-3 text-white rounded-2xl transition-all text-base sm:text-sm font-black shadow-lg ${activeCategory === SpotType.TRANSPORT ? 'bg-orange-500 hover:bg-orange-600' :
+                activeCategory === SpotType.STAY ? 'bg-purple-500 hover:bg-purple-600' : 'bg-blue-500 hover:bg-blue-600'
+                }`}
+            >
+              <Plus className="w-5 h-5 mr-1" /> 新增{activeCategory === SpotType.TRANSPORT ? '交通' : activeCategory === SpotType.STAY ? '住宿' : '景點'}
             </button>
           </div>
 
-          {activeDay.spots.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-50 rounded-[2rem] text-slate-300 font-bold">
-              <MapPin className="w-12 h-12 opacity-20 mb-4" />
-              <p>點擊右上方按鈕開始紀錄回憶與開銷</p>
-            </div>
-          ) : (
-            <SortableContext
-              items={spotIds}
-              strategy={verticalListSortingStrategy}
+          {/* 分類 Tab - 優化手機端顯示 */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 w-full gap-1">
+            <button
+              onClick={() => setActiveCategory(SpotType.SPOT)}
+              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.SPOT ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
             >
-              <div className="space-y-6">
-                {activeDay.spots.map((spot) => (
-                  <SortableSpotItem
-                    key={spot.id}
-                    spot={spot}
-                    currency={tripData.currency}
-                    onClick={() => handleEditSpot(spot)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          )}
+              <MapPin className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline">景點</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.SPOT ? 'bg-blue-50 text-blue-500' : 'bg-slate-200 text-slate-500'}`}>{groupSpots.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveCategory(SpotType.TRANSPORT)}
+              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.TRANSPORT ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+            >
+              <Car className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline">交通</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.TRANSPORT ? 'bg-orange-50 text-orange-500' : 'bg-slate-200 text-slate-500'}`}>{groupTransport.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveCategory(SpotType.STAY)}
+              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.STAY ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+            >
+              <Bed className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline">住宿</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.STAY ? 'bg-purple-50 text-purple-500' : 'bg-slate-200 text-slate-500'}`}>{groupStay.length}</span>
+            </button>
+          </div>
+
+          <div className="min-h-[300px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* 景點區塊 */}
+            {activeCategory === SpotType.SPOT && (
+              <section>
+                <SortableContext items={groupSpots.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-4">
+                    {groupSpots.map(spot => (
+                      <SortableSpotItem
+                        key={spot.id}
+                        spot={spot}
+                        currency={tripData.currency}
+                        onClick={() => handleEditSpot(spot)}
+                        onDelete={() => handleDeleteSpot(spot.id)}
+                      />
+                    ))}
+                    {groupSpots.length === 0 && (
+                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
+                        <MapPin className="w-12 h-12 text-slate-200 mb-4" />
+                        <p className="text-slate-300 font-bold">尚無景點行程，點擊上方按鈕新增</p>
+                      </div>
+                    )}
+                  </div>
+                </SortableContext>
+              </section>
+            )}
+
+            {/* 交通區塊 */}
+            {activeCategory === SpotType.TRANSPORT && (
+              <section>
+                <SortableContext items={groupTransport.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-4">
+                    {groupTransport.map(spot => (
+                      <SortableSpotItem
+                        key={spot.id}
+                        spot={spot}
+                        currency={tripData.currency}
+                        onClick={() => handleEditSpot(spot)}
+                        onDelete={() => handleDeleteSpot(spot.id)}
+                      />
+                    ))}
+                    {groupTransport.length === 0 && (
+                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
+                        <Car className="w-12 h-12 text-slate-200 mb-4" />
+                        <p className="text-slate-300 font-bold">尚無交通紀錄，紀錄您的移動開修</p>
+                      </div>
+                    )}
+                  </div>
+                </SortableContext>
+              </section>
+            )}
+
+            {/* 住宿區塊 */}
+            {activeCategory === SpotType.STAY && (
+              <section>
+                <SortableContext items={groupStay.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-4">
+                    {groupStay.map(spot => (
+                      <SortableSpotItem
+                        key={spot.id}
+                        spot={spot}
+                        currency={tripData.currency}
+                        onClick={() => handleEditSpot(spot)}
+                        onDelete={() => handleDeleteSpot(spot.id)}
+                      />
+                    ))}
+                    {groupStay.length === 0 && (
+                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
+                        <Bed className="w-12 h-12 text-slate-200 mb-4" />
+                        <p className="text-slate-300 font-bold">尚無住宿紀錄，紀錄休息地點與費用</p>
+                      </div>
+                    )}
+                  </div>
+                </SortableContext>
+              </section>
+            )}
+          </div>
+
+
         </div>
 
         <DragOverlay>
@@ -491,7 +626,9 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in">
           <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-2xl font-black text-slate-800">編輯景點與支出</h3>
+              <h3 className="text-2xl font-black text-slate-800">
+                {editingSpot.type === SpotType.TRANSPORT ? '交通紀錄' : editingSpot.type === SpotType.STAY ? '住宿紀錄' : '景點規劃'}
+              </h3>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-full"><X className="w-6 h-6 text-slate-400" /></button>
             </div>
 
@@ -499,10 +636,13 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">景點名稱</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      {editingSpot.type === SpotType.TRANSPORT ? '交通工具 / 路線' : editingSpot.type === SpotType.STAY ? '住宿名稱 / 飯店' : '景點名稱'}
+                    </label>
                     <input
                       required
                       type="text"
+                      placeholder={editingSpot.type === SpotType.TRANSPORT ? "例如：捷運、計程車、JR山手線..." : editingSpot.type === SpotType.STAY ? "例如：希爾頓飯店、APA Hotel..." : "景點名稱"}
                       value={editingSpot.name}
                       onChange={e => handleSpotChange({ name: e.target.value })}
                       className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700"
@@ -665,6 +805,37 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                 </div>
               </div>
               <button type="button" onClick={() => setShowModal(false)} className="w-full py-4 bg-blue-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 shadow-xl transition-all active:scale-95">完成</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 現代化刪除確認 Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDeleteId(null)}></div>
+          <div className="relative bg-white w-full max-w-[340px] rounded-[2.5rem] shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+              <AlertCircle className="w-10 h-10 text-red-500" />
+            </div>
+            <h4 className="text-xl font-black text-slate-800 mb-2">確定要刪除嗎？</h4>
+            <p className="text-sm font-bold text-slate-400 mb-8 leading-relaxed">
+              這項動作將無法撤銷，<br />
+              該筆行程與支出紀錄將會消失。
+            </p>
+            <div className="flex flex-col w-full space-y-3">
+              <button
+                onClick={confirmDelete}
+                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black text-sm shadow-lg shadow-red-200 hover:bg-red-600 transition-all active:scale-95"
+              >
+                確認刪除
+              </button>
+              <button
+                onClick={() => setDeleteId(null)}
+                className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-200 transition-all active:scale-95"
+              >
+                取消
+              </button>
             </div>
           </div>
         </div>

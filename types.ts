@@ -24,8 +24,15 @@ export interface NoteItem {
   content: string;
 }
 
+export enum SpotType {
+  SPOT = 'spot',
+  TRANSPORT = 'transport',
+  STAY = 'stay'
+}
+
 export interface Spot {
   id: string;
+  type: SpotType;
   name: string;
   startTime: string;
   endTime: string;
