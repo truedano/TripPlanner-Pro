@@ -30,6 +30,10 @@ interface Props {
   onUpdate: (updates: Partial<TripData>) => void;
 }
 
+interface IdentifiableSpotImage extends SpotImage {
+  internalId: string;
+}
+
 interface DroppableDayTabProps {
   dayIndex: number;
   date: string;
@@ -146,48 +150,120 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
   );
 };
 
+interface SortableImageItemProps {
+  image: IdentifiableSpotImage;
+  onRemove: () => void;
+  onChangeCaption: (newCaption: string) => void;
+}
+
+const SortableImageItem: React.FC<SortableImageItemProps> = ({ image, onRemove, onChangeCaption }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: image.internalId });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : 'auto',
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex space-x-3 bg-white p-3 rounded-xl border border-slate-100 items-center ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <div {...attributes} {...listeners} className="text-slate-300 cursor-grab active:cursor-grabbing hover:text-blue-400 p-1">
+        <GripVertical className="w-5 h-5" />
+      </div>
+      <img src={image.url} className="w-12 h-12 rounded-lg object-cover" />
+      <input
+        type="text"
+        placeholder="描述..."
+        value={image.caption}
+        onChange={e => onChangeCaption(e.target.value)}
+        className="flex-grow text-xs font-medium outline-none"
+        onPointerDown={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
 export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
+  const [editingImages, setEditingImages] = useState<IdentifiableSpotImage[]>([]);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
 
   const albumInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // DnD Sensors Configuration
+  // DnD Sensors
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 10, // 滑鼠需移動 10px 才會開始拖曳，避免與點擊編輯衝突
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250, // 觸控需按住 250ms 才會開始拖曳
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // 1. 安全地取得 activeDay (可能為 undefined)
+  const imageSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // Data helpers
   const activeDay = (tripData.days && tripData.days.length > 0) ? tripData.days[activeDayIndex] : undefined;
-
-  // 2. 準備 useMemo 所需的資料
   const activeDaySpots = activeDay ? activeDay.spots : [];
-
-  // 3. 在任何 return 之前呼叫 useMemo
   const spotIds = useMemo(() => activeDaySpots.map(s => s.id), [activeDaySpots]);
 
-  // 4. 安全地進行條件回傳
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
 
   const dailyTotal = activeDay.spots.reduce((sum, spot) => sum + (spot.expense?.actual || 0), 0);
 
+  // Sync Logic
+  const syncSpotToParent = (updatedSpot: Spot) => {
+    const updatedDays = [...tripData.days];
+    const spots = [...updatedDays[activeDayIndex].spots];
+    const index = spots.findIndex(s => s.id === updatedSpot.id);
+    if (index !== -1) {
+      spots[index] = updatedSpot;
+      updatedDays[activeDayIndex] = { ...updatedDays[activeDayIndex], spots: spots };
+      onUpdate({ days: updatedDays });
+    }
+  };
+
+  const handleSpotChange = (updates: Partial<Spot>) => {
+    if (!editingSpot) return;
+    const updated = { ...editingSpot, ...updates };
+    setEditingSpot(updated);
+    syncSpotToParent(updated);
+  };
+
+  const updateImages = (newImages: IdentifiableSpotImage[]) => {
+    setEditingImages(newImages);
+    if (editingSpot) {
+      const cleanImages = newImages.map(({ internalId, ...rest }) => rest);
+      handleSpotChange({ images: cleanImages });
+    }
+  };
+
+  // Event handlers
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragSpotId(event.active.id as string);
   };
@@ -195,21 +271,17 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragSpotId(null);
-
     if (!over) return;
 
     const activeSpotId = active.id as string;
     const overId = over.id as string;
 
-    // 情境 1: 跨天移動 (拖曳到日期 Tab)
     if (overId.startsWith('day-tab-')) {
       const targetDayIndex = parseInt(overId.replace('day-tab-', ''), 10);
-
       if (targetDayIndex !== activeDayIndex) {
         const newDays = [...tripData.days];
         const sourceSpots = [...newDays[activeDayIndex].spots];
         const targetSpots = [...newDays[targetDayIndex].spots];
-
         const spotIndex = sourceSpots.findIndex(s => s.id === activeSpotId);
         if (spotIndex !== -1) {
           const [movedSpot] = sourceSpots.splice(spotIndex, 1);
@@ -222,11 +294,9 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
       return;
     }
 
-    // 情境 2: 同一天內重新排序
     if (activeSpotId !== overId) {
       const oldIndex = activeDay.spots.findIndex((s) => s.id === activeSpotId);
       const newIndex = activeDay.spots.findIndex((s) => s.id === overId);
-
       if (oldIndex !== -1 && newIndex !== -1) {
         const newSpots = arrayMove(activeDay.spots, oldIndex, newIndex);
         const newDays = [...tripData.days];
@@ -236,8 +306,18 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     }
   };
 
+  const handleImageDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = editingImages.findIndex((i) => i.internalId === active.id);
+      const newIndex = editingImages.findIndex((i) => i.internalId === over.id);
+      const reordered = arrayMove(editingImages, oldIndex, newIndex);
+      updateImages(reordered);
+    }
+  };
+
   const handleAddSpot = () => {
-    setEditingSpot({
+    const newSpot: Spot = {
       id: crypto.randomUUID(),
       name: '',
       startTime: '',
@@ -246,7 +326,14 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
       mapUrl: '',
       images: [],
       expense: { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }
-    });
+    };
+
+    const updatedDays = [...tripData.days];
+    updatedDays[activeDayIndex].spots.push(newSpot);
+    onUpdate({ days: updatedDays });
+
+    setEditingSpot(newSpot);
+    setEditingImages([]);
     setShowModal(true);
   };
 
@@ -255,20 +342,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
       ...spot,
       expense: spot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }
     });
+    setEditingImages((spot.images || []).map(img => ({ ...img, internalId: crypto.randomUUID() })));
     setShowModal(true);
-  };
-
-  const saveSpot = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSpot) return;
-    const updatedDays = [...tripData.days];
-    const spots = [...updatedDays[activeDayIndex].spots];
-    const existingIndex = spots.findIndex(s => s.id === editingSpot.id);
-    if (existingIndex > -1) spots[existingIndex] = editingSpot;
-    else spots.push(editingSpot);
-    updatedDays[activeDayIndex] = { ...updatedDays[activeDayIndex], spots };
-    onUpdate({ days: updatedDays });
-    setShowModal(false);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,8 +353,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     try {
       const files = Array.from(inputElement.files) as File[];
       const compressed = await Promise.all(files.map(file => compressImage(file)));
-      const newImages: SpotImage[] = compressed.map(url => ({ url, caption: '' }));
-      setEditingSpot(prev => prev ? ({ ...prev, images: [...(prev.images || []), ...newImages] }) : null);
+      const newImages: IdentifiableSpotImage[] = compressed.map(url => ({ url, caption: '', internalId: crypto.randomUUID() }));
+      updateImages([...editingImages, ...newImages]);
     } finally {
       setIsProcessingImage(false);
       inputElement.value = '';
@@ -288,10 +363,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   const updateExpense = (updates: Partial<NonNullable<Spot['expense']>>) => {
     if (!editingSpot) return;
-    setEditingSpot({
-      ...editingSpot,
-      expense: { ...(editingSpot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }), ...updates }
-    });
+    const newExpense = { ...(editingSpot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }), ...updates };
+    handleSpotChange({ expense: newExpense });
   };
 
   const activeSpotData = activeDragSpotId ? activeDay.spots.find(s => s.id === activeDragSpotId) : null;
@@ -382,7 +455,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-full"><X className="w-6 h-6 text-slate-400" /></button>
             </div>
 
-            <form onSubmit={saveSpot} className="p-8 space-y-8 overflow-y-auto flex-grow custom-scrollbar">
+            <div className="p-8 space-y-8 overflow-y-auto flex-grow custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
@@ -391,13 +464,13 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                       required
                       type="text"
                       value={editingSpot.name}
-                      onChange={e => setEditingSpot({ ...editingSpot, name: e.target.value })}
+                      onChange={e => handleSpotChange({ name: e.target.value })}
                       className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <input type="time" value={editingSpot.startTime} onChange={e => setEditingSpot({ ...editingSpot, startTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
-                    <input type="time" value={editingSpot.endTime} onChange={e => setEditingSpot({ ...editingSpot, endTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
+                    <input type="time" value={editingSpot.startTime} onChange={e => handleSpotChange({ startTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
+                    <input type="time" value={editingSpot.endTime} onChange={e => handleSpotChange({ endTime: e.target.value })} className="px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700" />
                   </div>
 
                   <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100">
@@ -421,7 +494,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     rows={3}
                     placeholder="貼心筆記..."
                     value={editingSpot.notes}
-                    onChange={e => setEditingSpot({ ...editingSpot, notes: e.target.value })}
+                    onChange={e => handleSpotChange({ notes: e.target.value })}
                     className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-medium text-slate-700 resize-none"
                   />
                 </div>
@@ -441,41 +514,34 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                       <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                       <input type="file" ref={albumInputRef} accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
                     </div>
-                    <div className="space-y-4 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
+                    <div className="space-y-2 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
                       {isProcessingImage && <div className="flex items-center justify-center p-4 text-xs font-bold text-blue-500 animate-pulse italic">處理圖片中...</div>}
-                      {editingSpot.images?.map((img, i) => (
-                        <div key={i} className="flex space-x-3 bg-white p-3 rounded-xl border border-slate-100">
-                          <img src={img.url} className="w-12 h-12 rounded-lg object-cover" />
-                          <input
-                            type="text"
-                            placeholder="描述..."
-                            value={img.caption}
-                            onChange={e => {
-                              const newImg = [...(editingSpot.images || [])];
-                              newImg[i].caption = e.target.value;
-                              setEditingSpot({ ...editingSpot, images: newImg });
-                            }}
-                            className="flex-grow text-xs font-medium outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newImg = [...(editingSpot.images || [])];
-                              newImg.splice(i, 1);
-                              setEditingSpot({ ...editingSpot, images: newImg });
-                            }}
-                            className="p-1 text-slate-300 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+                      <DndContext sensors={imageSensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
+                        <SortableContext items={editingImages.map(i => i.internalId)} strategy={verticalListSortingStrategy}>
+                          {editingImages.map((img, i) => (
+                            <SortableImageItem
+                              key={img.internalId}
+                              image={img}
+                              onRemove={() => {
+                                const newImg = [...editingImages];
+                                newImg.splice(i, 1);
+                                updateImages(newImg);
+                              }}
+                              onChangeCaption={(val) => {
+                                const newImg = [...editingImages];
+                                newImg[i].caption = val;
+                                updateImages(newImg);
+                              }}
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
                     </div>
                   </div>
                 </div>
               </div>
-              <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 shadow-xl transition-all active:scale-95">確認儲存</button>
-            </form>
+              <button type="button" onClick={() => setShowModal(false)} className="w-full py-4 bg-blue-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 shadow-xl transition-all active:scale-95">完成</button>
+            </div>
           </div>
         </div>
       )}
