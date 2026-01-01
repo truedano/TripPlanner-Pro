@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { TripData, Spot, SpotImage, SpotType, ExpenseCategory, ExpenseItem } from '../types';
-import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle, Utensils } from 'lucide-react';
+import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle, Utensils, Zap } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import {
@@ -248,6 +248,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   const albumInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const startTimeInputRef = useRef<HTMLInputElement>(null);
+  const endTimeInputRef = useRef<HTMLInputElement>(null);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -716,26 +718,124 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="relative group">
-                      <input type="time" value={editingSpot.startTime} onChange={e => handleSpotChange({ startTime: e.target.value })} className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-12" />
-                      <button
-                        type="button"
-                        onClick={() => handleSpotChange({ startTime: getCurrentTime() })}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-blue-500 transition-colors"
-                        title="設為現在時間"
-                      >
-                        <Clock className="w-4 h-4" />
-                      </button>
+                      <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">開始時間 (24H)</label>
+                      <input
+                        type="text"
+                        placeholder="HH:mm"
+                        maxLength={5}
+                        value={editingSpot.startTime || ''}
+                        onChange={e => {
+                          let val = e.target.value.replace(/[^0-9]/g, '');
+                          if (val.length >= 3) {
+                            val = val.slice(0, 2) + ':' + val.slice(2, 4);
+                          }
+                          const parts = val.split(':');
+                          if (parts[0] && parseInt(parts[0]) > 23) return;
+                          if (parts[1] && parseInt(parts[1]) > 59) return;
+                          handleSpotChange({ startTime: val });
+                        }}
+                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-28 placeholder:text-slate-300 relative z-10"
+                      />
+                      <input
+                        type="time"
+                        ref={startTimeInputRef}
+                        className="absolute inset-0 opacity-0 pointer-events-none"
+                        onChange={e => handleSpotChange({ startTime: e.target.value })}
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 z-20">
+                        {editingSpot.startTime && (
+                          <button
+                            type="button"
+                            onClick={() => handleSpotChange({ startTime: '' })}
+                            className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                            title="清除時間"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleSpotChange({ startTime: getCurrentTime() })}
+                          className="p-1.5 text-slate-300 hover:text-amber-500 transition-colors"
+                          title="設為現在時間"
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              startTimeInputRef.current?.showPicker();
+                            } catch (e) {
+                              startTimeInputRef.current?.focus();
+                            }
+                          }}
+                          className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors"
+                          title="開啟時間選取器"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="relative group">
-                      <input type="time" value={editingSpot.endTime} onChange={e => handleSpotChange({ endTime: e.target.value })} className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-12" />
-                      <button
-                        type="button"
-                        onClick={() => handleSpotChange({ endTime: getCurrentTime() })}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-blue-500 transition-colors"
-                        title="設為現在時間"
-                      >
-                        <Clock className="w-4 h-4" />
-                      </button>
+                      <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">結束時間 (24H)</label>
+                      <input
+                        type="text"
+                        placeholder="HH:mm"
+                        maxLength={5}
+                        value={editingSpot.endTime || ''}
+                        onChange={e => {
+                          let val = e.target.value.replace(/[^0-9]/g, '');
+                          if (val.length >= 3) {
+                            val = val.slice(0, 2) + ':' + val.slice(2, 4);
+                          }
+                          const parts = val.split(':');
+                          if (parts[0] && parseInt(parts[0]) > 23) return;
+                          if (parts[1] && parseInt(parts[1]) > 59) return;
+                          handleSpotChange({ endTime: val });
+                        }}
+                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-28 placeholder:text-slate-300 relative z-10"
+                      />
+                      <input
+                        type="time"
+                        ref={endTimeInputRef}
+                        className="absolute inset-0 opacity-0 pointer-events-none"
+                        onChange={e => handleSpotChange({ endTime: e.target.value })}
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 z-20">
+                        {editingSpot.endTime && (
+                          <button
+                            type="button"
+                            onClick={() => handleSpotChange({ endTime: '' })}
+                            className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                            title="清除時間"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleSpotChange({ endTime: getCurrentTime() })}
+                          className="p-1.5 text-slate-300 hover:text-amber-500 transition-colors"
+                          title="設為現在時間"
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              endTimeInputRef.current?.showPicker();
+                            } catch (e) {
+                              endTimeInputRef.current?.focus();
+                            }
+                          }}
+                          className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors"
+                          title="開啟時間選取器"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
