@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TripData, DayPlan, ExpenseCategory, SpotType } from '../types';
-import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info, Save } from 'lucide-react';
+import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info, Save, Zap } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ApiKeyManager } from '../utils/apiKeyManager';
 import { ModalType } from './ModernModal';
@@ -15,10 +15,8 @@ interface Props {
 
 export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAlert }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  // 使用本地狀態來處理輸入，解決 IME (中文輸入法) 被重新渲染打斷的問題
   const [localName, setLocalName] = useState(tripData.name);
 
-  // 當外部資料更新時（例如 AI 生成完畢），同步本地狀態
   useEffect(() => {
     setLocalName(tripData.name);
   }, [tripData.name]);
@@ -30,7 +28,6 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
     const start = new Date(tripData.startDate);
     const end = new Date(tripData.endDate);
 
-    // 智慧同步：保留現有的天數資料（如果日期重合的話）
     const existingDaysMap = new Map();
     (tripData.days || []).forEach(day => {
       existingDaysMap.set(day.date, day);
@@ -48,7 +45,6 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
       current.setDate(current.getDate() + 1);
     }
 
-    // 在送出前更新一次全域狀態
     onUpdate({ name: localName, days: newDays });
     onNext();
   };
@@ -56,7 +52,6 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
   const generateAIPlan = async () => {
     if (!isValid) return;
     setIsGenerating(true);
-    // 同步當前的名字到全域，確保 AI 抓到最新輸入
     onUpdate({ name: localName });
 
     try {
@@ -73,7 +68,6 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
       const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-      // 安全性處理：限制長度並移除潛在的 HTML/XML 標籤，防止 Injection
       const safeName = localName.trim().substring(0, 50).replace(/[<>]/g, '');
 
       let prompt = `你是一位專業的旅遊規劃助理。請根據以下指示為使用者規劃行程。
@@ -87,7 +81,6 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
 </instructions>
 
 <trip_name>${safeName}</trip_name>`;
-
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -129,15 +122,12 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
       });
 
       let responseText = response.text || '[]';
-      // Clean potential Markdown code blocks
       responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
       let generatedDays;
       try {
         generatedDays = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.log('Raw text:', responseText);
         throw new Error('AI 回傳資料格式有誤，請稍後再試。');
       }
 
@@ -148,9 +138,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
           id: crypto.randomUUID(),
           type: spot.type === 'meal' ? SpotType.MEAL : SpotType.SPOT,
           images: [],
-          // 轉換 AI 的字串筆記為結構化陣列
           notes: spot.notes ? [{ id: crypto.randomUUID(), content: spot.notes }] : [],
-          // 轉換 AI 的單一支出對象為支出明細陣列
           expenses: spot.expense ? [{
             id: crypto.randomUUID(),
             name: spot.expense.category || '預估支出',
@@ -170,7 +158,8 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
   };
 
   return (
-    <div className="max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+    <div className="max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
+
       {isGenerating && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-md">
           <Sparkles className="w-12 h-12 text-blue-600 animate-bounce mb-8" />
@@ -178,63 +167,77 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
         </div>
       )}
 
-      <div className="bg-white rounded-[2.5rem] shadow-xl p-8 sm:p-10 border border-slate-50">
-        <div className="space-y-6">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">開始規劃您的旅程</h2>
+      <div className="bg-white rounded-[3rem] shadow-2xl p-8 sm:p-12 border border-slate-50/50">
+        <div className="space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-black bg-gradient-to-r from-slate-800 to-slate-500 bg-clip-text text-transparent tracking-tight">
+              開始規劃您的旅程
+            </h2>
+            <p className="text-slate-400 text-xs font-bold mt-2">填寫基本資料，讓 AI 助您一臂之力</p>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                <TypeIcon className="w-3 h-3 mr-2 text-blue-500" /> 行程名稱
+                <TypeIcon className="w-3.5 h-3.5 mr-2 text-indigo-500" /> 行程名稱
               </label>
               <input
                 type="text"
-                placeholder="例如：東京浪漫五日遊"
+                placeholder="例如：東京浪漫櫻花五日遊"
                 value={localName}
                 onChange={(e) => setLocalName(e.target.value)}
                 onBlur={() => onUpdate({ name: localName })}
-                className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-slate-700"
+                className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700 shadow-sm"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                  <CalendarDays className="w-3 h-3 mr-2 text-blue-500" /> 開始日期
+                  <CalendarDays className="w-3.5 h-3.5 mr-2 text-rose-500" /> 開始日期
                 </label>
-                <input type="date" value={tripData.startDate} onChange={(e) => onUpdate({ startDate: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-slate-700" />
+                <input
+                  type="date"
+                  value={tripData.startDate}
+                  onChange={(e) => onUpdate({ startDate: e.target.value })}
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                />
               </div>
               <div>
                 <label className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                  <CalendarDays className="w-3 h-3 mr-2 text-blue-500" /> 結束日期
+                  <CalendarDays className="w-3.5 h-3.5 mr-2 text-rose-500" /> 結束日期
                 </label>
-                <input type="date" value={tripData.endDate} onChange={(e) => onUpdate({ endDate: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-slate-700" />
+                <input
+                  type="date"
+                  value={tripData.endDate}
+                  onChange={(e) => onUpdate({ endDate: e.target.value })}
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div>
                 <label className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                  <Wallet className="w-3 h-3 mr-2 text-emerald-500" /> 預算總額
+                  <Wallet className="w-3.5 h-3.5 mr-2 text-emerald-500" /> 預算總額
+                  <span className="ml-1 text-[10px] text-slate-300 normal-case">(選填)</span>
                 </label>
                 <input
                   type="number"
-                  placeholder="0"
+                  placeholder="例如：50000"
                   value={tripData.totalBudget || ''}
                   onChange={(e) => onUpdate({ totalBudget: Number(e.target.value) })}
-                  className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 outline-none transition-all font-bold text-slate-700"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 shadow-sm"
                 />
               </div>
               <div>
                 <label className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                  <Coins className="w-3 h-3 mr-2 text-emerald-500" /> 幣別
+                  <Coins className="w-3.5 h-3.5 mr-2 text-amber-500" /> 幣別
                 </label>
                 <select
                   value={tripData.currency || 'TWD'}
                   onChange={(e) => onUpdate({ currency: e.target.value })}
-                  className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 outline-none transition-all font-bold text-slate-700 appearance-none"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 appearance-none shadow-sm cursor-pointer"
                 >
                   <option value="TWD">TWD (新台幣)</option>
                   <option value="JPY">JPY (日圓)</option>
@@ -246,7 +249,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
             </div>
           </div>
 
-          <div className="pt-4 space-y-4">
+          <div className="pt-6 space-y-4">
             <button
               onClick={() => {
                 if (tripData.days && tripData.days.length > 0) {
@@ -256,16 +259,28 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
                 }
               }}
               disabled={!isValid || isGenerating}
-              className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center space-x-2 transition-all shadow-lg ${isValid ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02]' : 'bg-slate-100 text-slate-300'
+              className={`w-full py-5 rounded-2xl font-black text-sm flex flex-col items-center justify-center transition-all shadow-xl relative overflow-hidden group ${isValid
+                ? 'bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 text-white hover:scale-[1.03] active:scale-95'
+                : 'bg-slate-100 text-slate-300'
                 }`}
             >
-              {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /><span>AI 智慧規劃景點與美食</span></>}
+              {isValid && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5 animate-pulse" /><span>AI 智慧規劃景點與美食</span></>}
+              </div>
+              {!isGenerating && isValid && (
+                <span className="text-[10px] opacity-70 font-bold mt-1 tracking-tighter">Powered by Gemini Pro</span>
+              )}
             </button>
+
             <button
               onClick={handleManualSetup}
               disabled={!isValid || isGenerating}
               className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center space-x-2 transition-all shadow-lg ${isValid
-                ? (tripData.days && tripData.days.length > 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50')
+                ? (tripData.days && tripData.days.length > 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200' : 'bg-white text-slate-600 border-2 border-slate-100 hover:bg-slate-50 hover:border-slate-200')
                 : 'bg-slate-50 text-slate-200'
                 }`}
             >
@@ -276,11 +291,18 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
                 </>
               ) : (
                 <>
-                  <span>手動建立行程框架</span>
-                  <ArrowRight className="w-4 h-4 ml-1" />
+                  <span className="opacity-80">或是</span>
+                  <span className="font-black">手動建立行程框架</span>
+                  <ArrowRight className="w-4 h-4 ml-1 opacity-50" />
                 </>
               )}
             </button>
+          </div>
+
+          <div className="flex justify-center items-center space-x-2 text-slate-300">
+            <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
+            <p className="text-[11px] font-bold">預算與天數之後皆可隨時調整</p>
+            <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
           </div>
         </div>
       </div>

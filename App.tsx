@@ -185,9 +185,9 @@ const App: React.FC = () => {
   const prevStep = () => setStep(prev => (prev > 1 ? prev - 1 : prev));
 
   const navSteps = [
-    { id: Step.SETUP, label: '設定', icon: Calendar },
-    { id: Step.PLANNING, label: '紀錄', icon: MapPin },
-    { id: Step.SUMMARY, label: '回憶', icon: CheckCircle },
+    { id: Step.SETUP, label: '基本設定' },
+    { id: Step.PLANNING, label: '行程規劃' },
+    { id: Step.SUMMARY, label: '預覽輸出' },
   ];
 
   if (isLoading) {
@@ -223,29 +223,39 @@ const App: React.FC = () => {
             </button>
 
             {step !== Step.DASHBOARD && (
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={prevStep}
-                  disabled={step === Step.SETUP}
-                  className="p-2 text-slate-300 hover:text-slate-900 disabled:opacity-10 transition-colors"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <div className="flex space-x-2">
-                  {navSteps.map(s => (
-                    <div
+              <div className="flex items-center space-x-4 md:space-x-8">
+                {navSteps.map(s => {
+                  const isActive = step === s.id;
+                  const isPast = step > s.id;
+                  return (
+                    <button
                       key={s.id}
-                      className={`h-1.5 rounded-full transition-all duration-500 ${step === s.id ? 'w-8 bg-slate-900' : 'w-4 bg-slate-100'}`}
-                    />
-                  ))}
-                </div>
-                <button
-                  onClick={nextStep}
-                  disabled={step === Step.SUMMARY}
-                  className="p-2 text-slate-300 hover:text-slate-900 disabled:opacity-10 transition-colors"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
+                      onClick={() => {
+                        // 如果要往後跳，執行驗證邏輯
+                        if (s.id > step) {
+                          if (step === Step.SETUP && activeTrip) {
+                            if (!activeTrip.name || !activeTrip.startDate || !activeTrip.endDate) {
+                              showAlert('遺漏資訊', '請先填寫行程名稱與旅遊日期區間。');
+                              return;
+                            }
+                            if (activeTrip.days.length === 0) {
+                              showAlert('行程未建立', '請先使用 AI 智慧規劃或手動建立行程框架。');
+                              return;
+                            }
+                          }
+                        }
+                        // 直接跳轉到目標步驟（無論前進或後退）
+                        setStep(s.id);
+                      }}
+                      className="flex flex-col items-center group touch-none"
+                    >
+                      <div className={`h-1.5 rounded-full transition-all duration-500 mb-1.5 ${isActive ? 'w-8 bg-blue-600' : isPast ? 'w-8 bg-slate-400' : 'w-4 bg-slate-100'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-tighter transition-colors ${isActive ? 'text-blue-600' : isPast ? 'text-slate-400' : 'text-slate-200'}`}>
+                        {s.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
