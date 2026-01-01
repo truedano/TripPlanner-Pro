@@ -27,7 +27,8 @@ export interface NoteItem {
 export enum SpotType {
   SPOT = 'spot',
   TRANSPORT = 'transport',
-  STAY = 'stay'
+  STAY = 'stay',
+  MEAL = 'meal'
 }
 
 export interface Spot {

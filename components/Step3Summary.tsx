@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { TripData, SpotType } from '../types';
-import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, ListOrdered, MapPin, Car, Bed } from 'lucide-react';
+import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, ListOrdered, MapPin, Car, Bed, Utensils } from 'lucide-react';
 
 interface Props {
   tripData: TripData;
@@ -179,13 +179,15 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
                   const CategoryIcon = {
                     [SpotType.SPOT]: MapPin,
                     [SpotType.TRANSPORT]: Car,
-                    [SpotType.STAY]: Bed
+                    [SpotType.STAY]: Bed,
+                    [SpotType.MEAL]: Utensils
                   }[spot.type || SpotType.SPOT] || MapPin;
 
                   const categoryTheme = {
                     [SpotType.SPOT]: { color: 'text-blue-500', bg: 'bg-blue-50', label: '景點' },
                     [SpotType.TRANSPORT]: { color: 'text-orange-500', bg: 'bg-orange-50', label: '交通' },
-                    [SpotType.STAY]: { color: 'text-purple-500', bg: 'bg-purple-50', label: '住宿' }
+                    [SpotType.STAY]: { color: 'text-purple-500', bg: 'bg-purple-50', label: '住宿' },
+                    [SpotType.MEAL]: { color: 'text-rose-500', bg: 'bg-rose-50', label: '伙食' }
                   }[spot.type || SpotType.SPOT] || { color: 'text-blue-500', bg: 'bg-blue-50', label: '景點' };
 
                   return (

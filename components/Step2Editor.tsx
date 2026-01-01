@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { TripData, Spot, SpotImage, SpotType, ExpenseCategory, ExpenseItem } from '../types';
-import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle } from 'lucide-react';
+import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle, Utensils } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import {
@@ -107,6 +107,7 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
     [SpotType.SPOT]: { icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', label: '景點' },
     [SpotType.TRANSPORT]: { icon: Car, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', label: '交通' },
     [SpotType.STAY]: { icon: Bed, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', label: '住宿' },
+    [SpotType.MEAL]: { icon: Utensils, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', label: '伙食' },
   };
 
   const currentType = spot.type || SpotType.SPOT;
@@ -259,6 +260,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const groupSpots = activeDaySpots.filter(s => !s.type || s.type === SpotType.SPOT);
   const groupTransport = activeDaySpots.filter(s => s.type === SpotType.TRANSPORT);
   const groupStay = activeDaySpots.filter(s => s.type === SpotType.STAY);
+  const groupMeals = activeDaySpots.filter(s => s.type === SpotType.MEAL);
 
   const spotIds = useMemo(() => activeDaySpots.map(s => s.id), [activeDaySpots]);
 
@@ -485,10 +487,12 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
             <button
               onClick={() => handleAddSpot(activeCategory)}
               className={`w-full sm:w-auto flex items-center justify-center px-6 py-4 sm:py-3 text-white rounded-2xl transition-all text-base sm:text-sm font-black shadow-lg ${activeCategory === SpotType.TRANSPORT ? 'bg-orange-500 hover:bg-orange-600' :
-                activeCategory === SpotType.STAY ? 'bg-purple-500 hover:bg-purple-600' : 'bg-blue-500 hover:bg-blue-600'
+                activeCategory === SpotType.STAY ? 'bg-purple-500 hover:bg-purple-600' :
+                  activeCategory === SpotType.MEAL ? 'bg-rose-500 hover:bg-rose-600' :
+                    'bg-blue-500 hover:bg-blue-600'
                 }`}
             >
-              <Plus className="w-5 h-5 mr-1" /> 新增{activeCategory === SpotType.TRANSPORT ? '交通' : activeCategory === SpotType.STAY ? '住宿' : '景點'}
+              <Plus className="w-5 h-5 mr-1" /> 新增{activeCategory === SpotType.TRANSPORT ? '交通' : activeCategory === SpotType.STAY ? '住宿' : activeCategory === SpotType.MEAL ? '伙食' : '景點'}
             </button>
           </div>
 
@@ -520,6 +524,15 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
               <Bed className="w-4 h-4 shrink-0" />
               <span className="hidden xs:inline">住宿</span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.STAY ? 'bg-purple-50 text-purple-500' : 'bg-slate-200 text-slate-500'}`}>{groupStay.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveCategory(SpotType.MEAL)}
+              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.MEAL ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+            >
+              <Utensils className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline">伙食</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.MEAL ? 'bg-rose-50 text-rose-500' : 'bg-slate-200 text-slate-500'}`}>{groupMeals.length}</span>
             </button>
           </div>
 
@@ -598,6 +611,31 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                 </SortableContext>
               </section>
             )}
+
+            {/* 伙食區塊 */}
+            {activeCategory === SpotType.MEAL && (
+              <section>
+                <SortableContext items={groupMeals.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-4">
+                    {groupMeals.map(spot => (
+                      <SortableSpotItem
+                        key={spot.id}
+                        spot={spot}
+                        currency={tripData.currency}
+                        onClick={() => handleEditSpot(spot)}
+                        onDelete={() => handleDeleteSpot(spot.id)}
+                      />
+                    ))}
+                    {groupMeals.length === 0 && (
+                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
+                        <Utensils className="w-12 h-12 text-slate-200 mb-4" />
+                        <p className="text-slate-300 font-bold">尚無伙食紀錄，紀錄美食地圖與花費</p>
+                      </div>
+                    )}
+                  </div>
+                </SortableContext>
+              </section>
+            )}
           </div>
 
 
@@ -628,7 +666,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
           <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center">
               <h3 className="text-2xl font-black text-slate-800">
-                {editingSpot.type === SpotType.TRANSPORT ? '交通紀錄' : editingSpot.type === SpotType.STAY ? '住宿紀錄' : '景點規劃'}
+                {editingSpot.type === SpotType.TRANSPORT ? '交通紀錄' : editingSpot.type === SpotType.STAY ? '住宿紀錄' : editingSpot.type === SpotType.MEAL ? '伙食紀錄' : '景點規劃'}
               </h3>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-full"><X className="w-6 h-6 text-slate-400" /></button>
             </div>
@@ -638,12 +676,12 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      {editingSpot.type === SpotType.TRANSPORT ? '交通工具 / 路線' : editingSpot.type === SpotType.STAY ? '住宿名稱 / 飯店' : '景點名稱'}
+                      {editingSpot.type === SpotType.TRANSPORT ? '交通工具 / 路線' : editingSpot.type === SpotType.STAY ? '住宿名稱 / 飯店' : editingSpot.type === SpotType.MEAL ? '餐廳 / 小吃名稱' : '景點名稱'}
                     </label>
                     <input
                       required
                       type="text"
-                      placeholder={editingSpot.type === SpotType.TRANSPORT ? "例如：捷運、計程車、JR山手線..." : editingSpot.type === SpotType.STAY ? "例如：希爾頓飯店、APA Hotel..." : "景點名稱"}
+                      placeholder={editingSpot.type === SpotType.TRANSPORT ? "例如：捷運、計程車、JR山手線..." : editingSpot.type === SpotType.STAY ? "例如：希爾頓飯店、APA Hotel..." : editingSpot.type === SpotType.MEAL ? "例如：一蘭拉麵、築地市場..." : "景點名稱"}
                       value={editingSpot.name}
                       onChange={e => handleSpotChange({ name: e.target.value })}
                       className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700"
