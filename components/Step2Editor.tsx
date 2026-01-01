@@ -118,51 +118,60 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`group border rounded-[1.5rem] p-5 hover:shadow-xl transition-all hover:bg-white cursor-grab active:cursor-grabbing touch-none select-none ${styleConfig.bg} ${styleConfig.border} hover:border-blue-200`}
+      className={`group border rounded-[2.5rem] p-4 sm:p-5 hover:shadow-xl transition-all hover:bg-white select-none ${styleConfig.bg} ${styleConfig.border} hover:border-blue-200`}
     >
       <div className="flex items-start">
-        <div className="self-center mr-3 p-3 -ml-2 text-slate-300 group-hover:text-blue-400 transition-colors">
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="self-center mr-2 sm:mr-3 p-3 -ml-2 text-slate-300 group-hover:text-blue-400 transition-colors cursor-grab active:cursor-grabbing touch-none"
+        >
           <GripVertical className="w-5 h-5" />
         </div>
 
-        <div onClick={onClick} className="flex flex-grow items-start">
+        <div onClick={onClick} className="flex flex-grow items-start min-w-0 cursor-pointer">
           <div className="hidden sm:flex flex-col items-center justify-center w-24 pr-4 border-r border-slate-200 mr-6 shrink-0">
             <span className={`text-xs font-black ${styleConfig.color}`}>{spot.startTime || '--:--'}</span>
             <div className={`h-4 w-0.5 my-1 opacity-30 ${styleConfig.bg.replace('bg-', 'bg-')}`}></div>
             <span className="text-[10px] font-bold text-slate-400">{spot.endTime || '--:--'}</span>
           </div>
-          <div className="flex-grow">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex flex-col">
+
+          <div className="flex-grow min-w-0">
+            <div className="flex justify-between items-start gap-2 mb-2">
+              <div className="flex flex-col min-w-0 flex-1">
                 <span className={`text-[10px] font-black uppercase tracking-tighter mb-1 ${styleConfig.color}`}>{styleConfig.label}</span>
-                <h4 className="font-black text-lg text-slate-800 truncate">{spot.name || `未命名${styleConfig.label}`}</h4>
+                <h4 className="font-black text-base sm:text-lg text-slate-800 truncate">{spot.name || `未命名${styleConfig.label}`}</h4>
               </div>
-              {spot.expenses && spot.expenses.length > 0 && (
-                <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-xs font-black">
-                  {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                className="ml-2 p-2 text-slate-300 hover:text-red-500 transition-colors rounded-full hover:bg-slate-100/50"
-                title="刪除紀錄"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center shrink-0 space-x-1">
+                {spot.expenses && spot.expenses.length > 0 && (
+                  <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-[10px] sm:text-xs font-black whitespace-nowrap">
+                    {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  className="p-2 text-slate-300 hover:text-red-500 transition-colors rounded-full hover:bg-slate-100/50"
+                  title="刪除紀錄"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center">
+
+            <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center mb-1">
               <Icon className="w-3 h-3 mr-1" /> 編輯詳細
             </div>
+
             {spot.images && spot.images.length > 0 && (
-              <div className="flex items-center space-x-2 mt-3 overflow-x-auto no-scrollbar">
+              <div className="flex items-center space-x-2 mt-3 overflow-x-auto no-scrollbar pb-1">
                 {spot.images.map((img, idx) => (
-                  <img key={idx} src={img.url} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shadow-sm" alt="thumbnail" />
+                  <img key={idx} src={img.url} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shadow-sm shrink-0" alt="thumbnail" />
                 ))}
               </div>
             )}
@@ -590,7 +599,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     {groupTransport.length === 0 && (
                       <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
                         <Car className="w-12 h-12 text-slate-200 mb-4" />
-                        <p className="text-slate-300 font-bold">尚無交通紀錄，紀錄您的移動開修</p>
+                        <p className="text-slate-300 font-bold">尚無交通紀錄，紀錄您的移動開銷</p>
                       </div>
                     )}
                   </div>
