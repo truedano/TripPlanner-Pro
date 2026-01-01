@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { TripData, ExpenseCategory } from '../types';
-import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, PieChart } from 'lucide-react';
+import { TripData } from '../types';
+import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, ListOrdered } from 'lucide-react';
 
 interface Props {
   tripData: TripData;
@@ -26,16 +26,17 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
   const budgetProgress = isBudgetSet ? (totalActual / budget) * 100 : 0;
   const currency = tripData.currency || 'TWD';
 
-  // 支出分類統計
-  const categoryTotals = Object.values(ExpenseCategory).map(cat => {
-    const total = allSpots.reduce((sum, spot) => {
-      const spotCatTotal = spot.expenses
-        ? spot.expenses.filter(e => e.category === cat).reduce((acc, e) => acc + (e.amount || 0), 0)
-        : 0;
-      return sum + spotCatTotal;
-    }, 0);
-    return { name: cat, total };
-  }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
+  // 支出明細匯總
+  const detailedExpenses = tripData.days.flatMap((day, dayIdx) =>
+    day.spots.flatMap(spot =>
+      (spot.expenses || []).map(exp => ({
+        day: dayIdx + 1,
+        spotName: spot.name,
+        name: exp.name,
+        amount: exp.amount
+      }))
+    )
+  ).filter(e => e.amount > 0 || e.name);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-5xl mx-auto pb-20 px-4">
@@ -113,30 +114,56 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
             )}
           </div>
 
-          <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm">
+          <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-black text-slate-800 flex items-center">
-                <PieChart className="w-5 h-5 mr-2 text-blue-500" /> 支出分類佔比
+                <ListOrdered className="w-5 h-5 mr-2 text-emerald-500" /> 支出預算明細表
               </h3>
-              <span className="text-xs font-bold text-slate-400">依實際支出計算</span>
+              <span className="text-xs font-bold text-slate-400">所有條目共 {detailedExpenses.length} 筆</span>
             </div>
-            {totalActual > 0 ? (
-              <div className="space-y-6">
-                {categoryTotals.map(cat => (
-                  <div key={cat.name} className="space-y-2">
-                    <div className="flex justify-between items-end">
-                      <span className="text-sm font-black text-slate-700">{cat.name}</span>
-                      <span className="text-sm font-bold text-slate-400">{currency} {cat.total.toLocaleString()} ({((cat.total / totalActual) * 100).toFixed(1)}%)</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden">
-                      <div className="h-full bg-slate-800 rounded-full" style={{ width: `${(cat.total / totalActual) * 100}%` }}></div>
-                    </div>
+
+            <div className="overflow-x-auto">
+              {detailedExpenses.length > 0 ? (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-50">
+                      <th className="pb-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">天數</th>
+                      <th className="pb-4 text-[10px] font-black text-slate-300 uppercase tracking-widest pl-4">相關項目/景點</th>
+                      <th className="pb-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">支出名稱</th>
+                      <th className="pb-4 text-[10px] font-black text-slate-300 uppercase tracking-widest text-right">金額 ({currency})</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {detailedExpenses.map((exp, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                        <td className="py-4">
+                          <span className="text-xs font-black text-slate-400">Day {exp.day}</span>
+                        </td>
+                        <td className="py-4 pl-4">
+                          <span className="text-xs font-bold text-slate-600 truncate max-w-[150px] inline-block">{exp.spotName || '未命名項目'}</span>
+                        </td>
+                        <td className="py-4">
+                          <span className="text-xs font-black text-slate-800">{exp.name || '未命名支出'}</span>
+                        </td>
+                        <td className="py-4 text-right">
+                          <span className="text-sm font-black text-emerald-600">{exp.amount.toLocaleString()}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="py-20 text-center flex flex-col items-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <Wallet className="w-8 h-8 text-slate-200" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-12 text-center text-slate-300 font-bold italic">尚無任何支出紀錄</div>
-            )}
+                  <p className="text-slate-300 font-bold italic text-sm">尚無任何支出項目，請回到編輯器新增。</p>
+                </div>
+              )}
+            </div>
+
+            {/* 裝飾性漸層 */}
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white/50 to-transparent pointer-events-none"></div>
           </div>
         </div>
       ) : (
@@ -164,11 +191,15 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
                           )}
                         </div>
                         <h4 className={`text-slate-900 font-black tracking-tight leading-tight mb-4 ${viewMode === 'journal' ? 'text-4xl font-serif italic' : 'text-2xl'}`}>{spot.name || '未命名項目'}</h4>
-                        {spot.notes && spot.notes.length > 0 && (
+                        {spot.notes && (Array.isArray(spot.notes) ? spot.notes.length > 0 : typeof spot.notes === 'string' && spot.notes.trim() !== '') && (
                           <div className="text-slate-500 italic mb-6 space-y-2 border-l-2 border-slate-100 pl-4">
-                            {spot.notes.map(note => (
-                              <p key={note.id} className="text-sm">"{note.content}"</p>
-                            ))}
+                            {Array.isArray(spot.notes) ? (
+                              spot.notes.map(note => (
+                                <p key={note.id} className="text-sm">"{note.content}"</p>
+                              ))
+                            ) : (
+                              <p className="text-sm">"{spot.notes}"</p>
+                            )}
                           </div>
                         )}
                       </div>

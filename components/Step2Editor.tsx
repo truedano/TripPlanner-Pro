@@ -417,7 +417,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   const addExpenseItem = () => {
     if (!editingSpot) return;
-    const newItem: ExpenseItem = { id: crypto.randomUUID(), name: '', amount: 0, category: ExpenseCategory.OTHER };
+    const newItem: ExpenseItem = { id: crypto.randomUUID(), name: '', amount: 0 };
     handleSpotChange({ expenses: [...(editingSpot.expenses || []), newItem] });
   };
 
@@ -426,7 +426,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     handleSpotChange({ expenses: editingSpot.expenses.filter(e => e.id !== id) });
   };
 
-  const updateExpenseItem = (id: string, updates: Partial<{ name: string, amount: number, category: ExpenseCategory }>) => {
+  const updateExpenseItem = (id: string, updates: Partial<{ name: string, amount: number }>) => {
     if (!editingSpot) return;
     handleSpotChange({
       expenses: editingSpot.expenses.map(e => e.id === id ? { ...e, ...updates } : e)
@@ -690,43 +690,31 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     </div>
                     <div className="space-y-3">
                       {editingSpot.expenses?.map((exp) => (
-                        <div key={exp.id} className="flex flex-col space-y-2 p-3 bg-white rounded-xl border border-slate-200 animate-in slide-in-from-left-2 duration-200">
-                          <div className="flex items-center space-x-2">
-                            <select
-                              value={exp.category}
-                              onChange={e => updateExpenseItem(exp.id, { category: e.target.value as ExpenseCategory })}
-                              className="w-20 px-1 py-1 rounded bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-500 outline-none"
-                            >
-                              {Object.values(ExpenseCategory).map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                              ))}
-                            </select>
-                            <input
-                              type="text"
-                              placeholder="項目名稱..."
-                              value={exp.name}
-                              onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
-                              className="flex-grow px-2 py-1 bg-transparent text-xs font-bold text-slate-600 outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeExpenseItem(exp.id)}
-                              className="p-1 text-slate-200 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="flex items-center justify-end space-x-2 border-t border-slate-50 pt-2">
-                            <span className="text-[10px] font-black text-slate-300">金額</span>
+                        <div key={exp.id} className="group flex items-center space-x-3 p-4 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition-all animate-in slide-in-from-left-2 duration-200 shadow-sm hover:shadow-md">
+                          <input
+                            type="text"
+                            placeholder="支出項目名稱..."
+                            value={exp.name}
+                            onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
+                            className="flex-grow bg-transparent text-sm font-black text-slate-700 outline-none placeholder:text-slate-300"
+                          />
+                          <div className="flex items-center space-x-2 border-l border-slate-100 pl-4">
                             <input
                               type="number"
                               placeholder="0"
                               value={exp.amount || ''}
                               onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
-                              className="w-20 bg-transparent text-xs font-black text-emerald-600 outline-none text-right"
+                              className="w-20 bg-transparent text-base font-black text-emerald-600 outline-none text-right"
                             />
-                            <span className="text-[10px] font-black text-emerald-600">{tripData.currency}</span>
+                            <span className="text-[10px] font-black text-emerald-300">{tripData.currency}</span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => removeExpenseItem(exp.id)}
+                            className="p-1 px-2 text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       ))}
                       {(!editingSpot.expenses || editingSpot.expenses.length === 0) && (

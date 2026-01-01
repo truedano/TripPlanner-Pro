@@ -138,7 +138,15 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
         spots: day.spots.map((spot: any) => ({
           ...spot,
           id: crypto.randomUUID(),
-          images: []
+          images: [],
+          // 轉換 AI 的字串筆記為結構化陣列
+          notes: spot.notes ? [{ id: crypto.randomUUID(), content: spot.notes }] : [],
+          // 轉換 AI 的單一支出對象為支出明細陣列
+          expenses: spot.expense ? [{
+            id: crypto.randomUUID(),
+            name: spot.expense.category || '預估支出',
+            amount: spot.expense.estimated || spot.expense.actual || 0
+          }] : []
         }))
       }));
 
