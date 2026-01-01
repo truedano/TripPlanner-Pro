@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { TripData, Spot, SpotImage, SpotType, ExpenseCategory } from '../types';
+import { TripData, Spot, SpotImage, SpotType, ExpenseCategory, ExpenseItem } from '../types';
 import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
@@ -417,7 +417,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   const addExpenseItem = () => {
     if (!editingSpot) return;
-    const newItem = { id: crypto.randomUUID(), name: '', amount: 0 };
+    const newItem: ExpenseItem = { id: crypto.randomUUID(), name: '', amount: 0, category: ExpenseCategory.OTHER };
     handleSpotChange({ expenses: [...(editingSpot.expenses || []), newItem] });
   };
 
@@ -426,7 +426,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     handleSpotChange({ expenses: editingSpot.expenses.filter(e => e.id !== id) });
   };
 
-  const updateExpenseItem = (id: string, updates: Partial<{ name: string, amount: number }>) => {
+  const updateExpenseItem = (id: string, updates: Partial<{ name: string, amount: number, category: ExpenseCategory }>) => {
     if (!editingSpot) return;
     handleSpotChange({
       expenses: editingSpot.expenses.map(e => e.id === id ? { ...e, ...updates } : e)
@@ -690,28 +690,43 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                     </div>
                     <div className="space-y-3">
                       {editingSpot.expenses?.map((exp) => (
-                        <div key={exp.id} className="flex items-center space-x-2 animate-in slide-in-from-left-2 duration-200">
-                          <input
-                            type="text"
-                            placeholder="項目名稱..."
-                            value={exp.name}
-                            onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
-                            className="flex-grow px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 outline-none focus:border-blue-400"
-                          />
-                          <input
-                            type="number"
-                            placeholder="金額"
-                            value={exp.amount || ''}
-                            onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
-                            className="w-24 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-emerald-600 outline-none focus:border-emerald-400"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeExpenseItem(exp.id)}
-                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div key={exp.id} className="flex flex-col space-y-2 p-3 bg-white rounded-xl border border-slate-200 animate-in slide-in-from-left-2 duration-200">
+                          <div className="flex items-center space-x-2">
+                            <select
+                              value={exp.category}
+                              onChange={e => updateExpenseItem(exp.id, { category: e.target.value as ExpenseCategory })}
+                              className="w-20 px-1 py-1 rounded bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-500 outline-none"
+                            >
+                              {Object.values(ExpenseCategory).map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="項目名稱..."
+                              value={exp.name}
+                              onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
+                              className="flex-grow px-2 py-1 bg-transparent text-xs font-bold text-slate-600 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeExpenseItem(exp.id)}
+                              className="p-1 text-slate-200 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-end space-x-2 border-t border-slate-50 pt-2">
+                            <span className="text-[10px] font-black text-slate-300">金額</span>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={exp.amount || ''}
+                              onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
+                              className="w-20 bg-transparent text-xs font-black text-emerald-600 outline-none text-right"
+                            />
+                            <span className="text-[10px] font-black text-emerald-600">{tripData.currency}</span>
+                          </div>
                         </div>
                       ))}
                       {(!editingSpot.expenses || editingSpot.expenses.length === 0) && (

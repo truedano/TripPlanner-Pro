@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { TripData } from '../types';
-import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info } from 'lucide-react';
+import { TripData, ExpenseCategory } from '../types';
+import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, PieChart } from 'lucide-react';
 
 interface Props {
   tripData: TripData;
@@ -24,6 +24,18 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
   const isBudgetSet = !!tripData.totalBudget && tripData.totalBudget > 0;
   const budget = isBudgetSet ? tripData.totalBudget : (totalActual || 1);
   const budgetProgress = isBudgetSet ? (totalActual / budget) * 100 : 0;
+  const currency = tripData.currency || 'TWD';
+
+  // 支出分類統計
+  const categoryTotals = Object.values(ExpenseCategory).map(cat => {
+    const total = allSpots.reduce((sum, spot) => {
+      const spotCatTotal = spot.expenses
+        ? spot.expenses.filter(e => e.category === cat).reduce((acc, e) => acc + (e.amount || 0), 0)
+        : 0;
+      return sum + spotCatTotal;
+    }, 0);
+    return { name: cat, total };
+  }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-5xl mx-auto pb-20 px-4">
@@ -63,19 +75,19 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
                 {isBudgetSet ? '自訂總預算' : '預算狀態'}
               </span>
               <span className="text-4xl font-serif font-black italic text-slate-800">
-                {tripData.currency} {isBudgetSet ? tripData.totalBudget?.toLocaleString() : '--'}
+                {currency} {isBudgetSet ? tripData.totalBudget?.toLocaleString() : '--'}
               </span>
               <TrendingUp className="w-6 h-6 text-slate-100 mt-4" />
             </div>
             <div className="bg-white p-8 rounded-[2.5rem] border border-emerald-100 shadow-sm flex flex-col items-center text-center">
               <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">目前實際總支出</span>
-              <span className="text-4xl font-serif font-black italic text-emerald-600">{tripData.currency} {totalActual.toLocaleString()}</span>
+              <span className="text-4xl font-serif font-black italic text-emerald-600">{currency} {totalActual.toLocaleString()}</span>
               <Wallet className="w-6 h-6 text-emerald-100 mt-4" />
             </div>
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center text-center">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">支出狀態</span>
               <span className={`text-4xl font-serif font-black italic ${isBudgetSet && budget - totalActual < 0 ? 'text-rose-500' : 'text-slate-800'}`}>
-                {isBudgetSet ? `${tripData.currency} ${(budget - totalActual).toLocaleString()}` : '記錄中'}
+                {isBudgetSet ? `${currency} ${(budget - totalActual).toLocaleString()}` : '記錄中'}
               </span>
               <BarChart3 className="w-6 h-6 text-slate-100 mt-4" />
             </div>
@@ -99,11 +111,31 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
                 <p className="text-xs font-black italic tracking-wide">注意：已超出預期支出上限！</p>
               </div>
             )}
-            {!isBudgetSet && (
-              <div className="mt-4 flex items-center justify-center space-x-2 text-slate-400">
-                <Info className="w-3 h-3" />
-                <p className="text-[10px] font-bold italic">提示：設定總預算可幫助您更精確地掌控旅遊花費。</p>
+          </div>
+
+          <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-slate-800 flex items-center">
+                <PieChart className="w-5 h-5 mr-2 text-blue-500" /> 支出分類佔比
+              </h3>
+              <span className="text-xs font-bold text-slate-400">依實際支出計算</span>
+            </div>
+            {totalActual > 0 ? (
+              <div className="space-y-6">
+                {categoryTotals.map(cat => (
+                  <div key={cat.name} className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm font-black text-slate-700">{cat.name}</span>
+                      <span className="text-sm font-bold text-slate-400">{currency} {cat.total.toLocaleString()} ({((cat.total / totalActual) * 100).toFixed(1)}%)</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden">
+                      <div className="h-full bg-slate-800 rounded-full" style={{ width: `${(cat.total / totalActual) * 100}%` }}></div>
+                    </div>
+                  </div>
+                ))}
               </div>
+            ) : (
+              <div className="py-12 text-center text-slate-300 font-bold italic">尚無任何支出紀錄</div>
             )}
           </div>
         </div>
@@ -127,7 +159,7 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
                           </div>
                           {spot.expenses && spot.expenses.length > 0 && (
                             <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                              {tripData.currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                              {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                             </div>
                           )}
                         </div>
