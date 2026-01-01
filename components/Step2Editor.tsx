@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { TripData, Spot, SpotImage, ExpenseCategory } from '../types';
-import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical } from 'lucide-react';
+import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2 } from 'lucide-react';
 import { compressImage } from '../utils/image';
 import {
   DndContext,
@@ -132,6 +132,13 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
             <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center">
               <Edit3 className="w-3 h-3 mr-1" /> 編輯紀錄
             </div>
+            {spot.images && spot.images.length > 0 && (
+              <div className="flex items-center space-x-2 mt-3 overflow-x-auto no-scrollbar">
+                {spot.images.map((img, idx) => (
+                  <img key={idx} src={img.url} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shadow-sm" alt="thumbnail" />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -147,6 +154,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
 
   const albumInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // DnD Sensors Configuration
   const sensors = useSensors(
@@ -265,15 +273,16 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !editingSpot) return;
+    const inputElement = e.target;
     setIsProcessingImage(true);
     try {
-      const files = Array.from(e.target.files) as File[];
+      const files = Array.from(inputElement.files) as File[];
       const compressed = await Promise.all(files.map(file => compressImage(file)));
       const newImages: SpotImage[] = compressed.map(url => ({ url, caption: '' }));
-      setEditingSpot({ ...editingSpot, images: [...(editingSpot.images || []), ...newImages] });
+      setEditingSpot(prev => prev ? ({ ...prev, images: [...(prev.images || []), ...newImages] }) : null);
     } finally {
       setIsProcessingImage(false);
-      if (albumInputRef.current) albumInputRef.current.value = '';
+      inputElement.value = '';
     }
   };
 
@@ -421,7 +430,15 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                   <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex flex-col h-full min-h-[300px]">
                     <div className="flex items-center justify-between mb-4">
                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest">相簿</label>
-                      <button type="button" onClick={() => albumInputRef.current?.click()} className="text-blue-600 text-xs font-black hover:underline flex items-center"><Library className="w-3 h-3 mr-1" />上傳</button>
+                      <div className="flex items-center space-x-3">
+                        <button type="button" onClick={() => cameraInputRef.current?.click()} className="text-blue-600 text-xs font-black hover:underline flex items-center">
+                          <Camera className="w-3 h-3 mr-1" />拍照
+                        </button>
+                        <button type="button" onClick={() => albumInputRef.current?.click()} className="text-blue-600 text-xs font-black hover:underline flex items-center">
+                          <Library className="w-3 h-3 mr-1" />上傳
+                        </button>
+                      </div>
+                      <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                       <input type="file" ref={albumInputRef} accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
                     </div>
                     <div className="space-y-4 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
@@ -440,6 +457,17 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                             }}
                             className="flex-grow text-xs font-medium outline-none"
                           />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newImg = [...(editingSpot.images || [])];
+                              newImg.splice(i, 1);
+                              setEditingSpot({ ...editingSpot, images: newImg });
+                            }}
+                            className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       ))}
                     </div>
