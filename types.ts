@@ -13,10 +13,10 @@ export enum ExpenseCategory {
   OTHER = '其他'
 }
 
-export interface Expense {
-  estimated: number;
-  actual: number;
-  category: ExpenseCategory;
+export interface ExpenseItem {
+  id: string;
+  name: string;
+  amount: number;
 }
 
 export interface Spot {
@@ -26,8 +26,8 @@ export interface Spot {
   endTime: string;
   notes: string;
   mapUrl: string;
-  images?: SpotImage[]; 
-  expense?: Expense;
+  images?: SpotImage[];
+  expenses: ExpenseItem[];
 }
 
 export interface DayPlan {

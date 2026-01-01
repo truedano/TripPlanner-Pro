@@ -127,9 +127,9 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
           <div className="flex-grow">
             <div className="flex justify-between items-start mb-2">
               <h4 className="font-black text-lg text-slate-800 truncate">{spot.name}</h4>
-              {spot.expense && spot.expense.actual > 0 && (
+              {spot.expenses && spot.expenses.length > 0 && (
                 <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-xs font-black">
-                  {currency} {spot.expense.actual.toLocaleString()}
+                  {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                 </div>
               )}
             </div>
@@ -239,7 +239,9 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   };
 
-  const dailyTotal = activeDay.spots.reduce((sum, spot) => sum + (spot.expense?.actual || 0), 0);
+  const dailyTotal = activeDay.spots.reduce((sum, spot) =>
+    sum + (spot.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0
+  );
 
 
   // Sync Logic
@@ -332,7 +334,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
       notes: '',
       mapUrl: '',
       images: [],
-      expense: { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }
+      expenses: []
     };
 
     const updatedDays = [...tripData.days];
@@ -347,7 +349,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const handleEditSpot = (spot: Spot) => {
     setEditingSpot({
       ...spot,
-      expense: spot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }
+      expenses: spot.expenses || []
     });
     setEditingImages((spot.images || []).map(img => ({ ...img, internalId: crypto.randomUUID() })));
     setShowModal(true);
@@ -368,10 +370,22 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
     }
   };
 
-  const updateExpense = (updates: Partial<NonNullable<Spot['expense']>>) => {
+  const addExpenseItem = () => {
     if (!editingSpot) return;
-    const newExpense = { ...(editingSpot.expense || { estimated: 0, actual: 0, category: ExpenseCategory.OTHER }), ...updates };
-    handleSpotChange({ expense: newExpense });
+    const newItem = { id: crypto.randomUUID(), name: '', amount: 0 };
+    handleSpotChange({ expenses: [...(editingSpot.expenses || []), newItem] });
+  };
+
+  const removeExpenseItem = (id: string) => {
+    if (!editingSpot) return;
+    handleSpotChange({ expenses: editingSpot.expenses.filter(e => e.id !== id) });
+  };
+
+  const updateExpenseItem = (id: string, updates: Partial<{ name: string, amount: number }>) => {
+    if (!editingSpot) return;
+    handleSpotChange({
+      expenses: editingSpot.expenses.map(e => e.id === id ? { ...e, ...updates } : e)
+    });
   };
 
   const activeSpotData = activeDragSpotId ? activeDay.spots.find(s => s.id === activeDragSpotId) : null;
@@ -442,9 +456,9 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                 <div>
                   <div className="text-xs font-black text-blue-500 mb-1">{activeSpotData.startTime} - {activeSpotData.endTime}</div>
                   <h4 className="font-black text-lg text-slate-800">{activeSpotData.name}</h4>
-                  {activeSpotData.expense && activeSpotData.expense.actual > 0 && (
+                  {activeSpotData.expenses && activeSpotData.expenses.length > 0 && (
                     <div className="mt-1 text-xs font-black text-emerald-600 bg-emerald-50 inline-block px-2 py-0.5 rounded-md">
-                      {tripData.currency} {activeSpotData.expense.actual.toLocaleString()}
+                      {tripData.currency} {activeSpotData.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -501,19 +515,50 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                   </div>
 
                   <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100">
-                    <div className="flex items-center space-x-2 text-slate-400 mb-2">
-                      <Wallet className="w-4 h-4" />
-                      <span className="text-xs font-black uppercase tracking-widest">支出紀錄 ({tripData.currency})</span>
+                    <div className="flex items-center justify-between text-slate-400 mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Wallet className="w-4 h-4" />
+                        <span className="text-xs font-black uppercase tracking-widest">支出紀錄 ({tripData.currency})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addExpenseItem}
+                        className="text-blue-600 text-[10px] font-black hover:underline flex items-center bg-white px-2 py-1 rounded-lg border border-slate-100"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />新增明細
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 mb-1">預估金額</label>
-                        <input type="number" value={editingSpot.expense?.estimated || ''} onChange={e => updateExpense({ estimated: Number(e.target.value) })} className="w-full px-4 py-2 rounded-xl bg-white border border-slate-200 font-bold text-slate-600" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 mb-1">實際支出</label>
-                        <input type="number" value={editingSpot.expense?.actual || ''} onChange={e => updateExpense({ actual: Number(e.target.value) })} className="w-full px-4 py-2 rounded-xl bg-white border border-emerald-200 font-bold text-emerald-600 outline-none" />
-                      </div>
+                    <div className="space-y-3">
+                      {editingSpot.expenses?.map((exp) => (
+                        <div key={exp.id} className="flex items-center space-x-2 animate-in slide-in-from-left-2 duration-200">
+                          <input
+                            type="text"
+                            placeholder="項目名稱..."
+                            value={exp.name}
+                            onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
+                            className="flex-grow px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 outline-none focus:border-blue-400"
+                          />
+                          <input
+                            type="number"
+                            placeholder="金額"
+                            value={exp.amount || ''}
+                            onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
+                            className="w-24 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-emerald-600 outline-none focus:border-emerald-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeExpenseItem(exp.id)}
+                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {(!editingSpot.expenses || editingSpot.expenses.length === 0) && (
+                        <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-300 text-[10px] font-bold">
+                          尚無支出明細
+                        </div>
+                      )}
                     </div>
                   </div>
 
