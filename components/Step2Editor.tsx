@@ -131,10 +131,11 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
         </div>
 
         <div onClick={onClick} className="flex flex-grow items-start min-w-0 cursor-pointer">
-          <div className="hidden sm:flex flex-col items-center justify-center w-24 pr-4 border-r border-slate-200 mr-6 shrink-0">
-            <span className={`text-xs font-black ${styleConfig.color}`}>{spot.startTime || '--:--'}</span>
-            <div className={`h-4 w-0.5 my-1 opacity-30 ${styleConfig.bg.replace('bg-', 'bg-')}`}></div>
-            <span className="text-[10px] font-bold text-slate-400">{spot.endTime || '--:--'}</span>
+          {/* Time indicator - localized responsive styling */}
+          <div className="flex flex-col items-center justify-center w-12 sm:w-24 pr-3 sm:pr-4 border-r border-slate-100 sm:border-slate-200 mr-3 sm:mr-6 shrink-0">
+            <span className={`text-[10px] sm:text-xs font-black ${styleConfig.color}`}>{spot.startTime || '--:--'}</span>
+            <div className={`h-3 sm:h-4 w-0.5 my-0.5 sm:my-1 opacity-20 ${styleConfig.color.replace('text-', 'bg-')}`}></div>
+            <span className="text-[10px] font-bold text-slate-400 scale-[0.85] sm:scale-100">{spot.endTime || '--:--'}</span>
           </div>
 
           <div className="flex-grow min-w-0">
