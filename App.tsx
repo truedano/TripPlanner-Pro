@@ -7,6 +7,7 @@ import { Step3Summary } from './components/Step3Summary';
 import { TripData, Step } from './types';
 import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2, Settings } from 'lucide-react';
 import { ApiKeyModal } from './components/ApiKeyModal';
+import { ModernModal, ModalType } from './components/ModernModal';
 import { db } from './db';
 
 const TRIPS_STORAGE_KEY_LEGACY = 'trip_planner_all_trips';
@@ -19,6 +20,20 @@ const App: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    type: ModalType;
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: ''
+  });
 
   const activeTrip = useMemo(() => trips.find(t => t.id === activeTripId), [trips, activeTripId]);
 
@@ -99,15 +114,21 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTrip = async (id: string) => {
-    if (!window.confirm('確定要永久刪除這份回憶嗎？此操作無法還原。')) return;
-
-    await db.trips.delete(id);
-    setTrips(prev => prev.filter(t => t.id !== id));
-
-    if (activeTripId === id) {
-      setActiveTripId(null);
-      setStep(Step.DASHBOARD);
-    }
+    setModalConfig({
+      isOpen: true,
+      type: 'confirm',
+      title: '確定要永久刪除嗎？',
+      message: '此動作將無法還原，這份旅程的所有回憶與紀錄將會永久消失。',
+      onConfirm: async () => {
+        await db.trips.delete(id);
+        setTrips(prev => prev.filter(t => t.id !== id));
+        if (activeTripId === id) {
+          setActiveTripId(null);
+          setStep(Step.DASHBOARD);
+        }
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleUpdateActiveTrip = async (updates: Partial<TripData>) => {
@@ -125,17 +146,33 @@ const App: React.FC = () => {
     await db.trips.bulkPut(importedTrips);
     const allTrips = await db.trips.orderBy('lastModified').reverse().toArray();
     setTrips(allTrips);
-    alert('成功匯入資料！');
+    setModalConfig({
+      isOpen: true,
+      type: 'success',
+      title: '匯入成功',
+      message: `已成功匯入 ${importedTrips.length} 份旅程檔案！`,
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  const showAlert = (title: string, message: string, type: ModalType = 'alert') => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
   };
 
   const nextStep = () => {
     if (step === Step.SETUP && activeTrip) {
       if (!activeTrip.name || !activeTrip.startDate || !activeTrip.endDate) {
-        alert('請先填寫行程名稱與日期區間');
+        showAlert('遺漏資訊', '請先填寫行程名稱與旅遊日期區間。');
         return;
       }
       if (activeTrip.days.length === 0) {
-        alert('請先使用 AI 規劃或點擊下方按鈕手動建立行程');
+        showAlert('行程未建立', '請先使用 AI 智慧規劃或手動建立行程框架。');
         return;
       }
     }
@@ -257,6 +294,7 @@ const App: React.FC = () => {
             onDelete={handleDeleteTrip}
             onCreate={handleCreateNewTrip}
             onImport={handleImportTrips}
+            showAlert={showAlert}
           />
         )}
         {step === Step.SETUP && activeTrip && (
@@ -264,6 +302,7 @@ const App: React.FC = () => {
             tripData={activeTrip}
             onUpdate={handleUpdateActiveTrip}
             onNext={() => setStep(Step.PLANNING)}
+            showAlert={showAlert}
           />
         )}
         {step === Step.PLANNING && activeTrip && <Step2Editor tripData={activeTrip} onUpdate={handleUpdateActiveTrip} />}
@@ -287,6 +326,15 @@ const App: React.FC = () => {
         isOpen={showApiKeyModal}
         onClose={() => setShowApiKeyModal(false)}
         onSave={() => { }}
+      />
+
+      <ModernModal
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm || (() => setModalConfig(prev => ({ ...prev, isOpen: false })))}
+        onCancel={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
       />
     </div >
   );

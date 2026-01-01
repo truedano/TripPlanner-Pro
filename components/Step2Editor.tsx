@@ -2,6 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { TripData, Spot, SpotImage, SpotType, ExpenseCategory } from '../types';
 import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle } from 'lucide-react';
+import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import {
   DndContext,
@@ -810,36 +811,14 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
         </div>
       )}
 
-      {/* 現代化刪除確認 Modal */}
-      {deleteId && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDeleteId(null)}></div>
-          <div className="relative bg-white w-full max-w-[340px] rounded-[2.5rem] shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
-            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
-              <AlertCircle className="w-10 h-10 text-red-500" />
-            </div>
-            <h4 className="text-xl font-black text-slate-800 mb-2">確定要刪除嗎？</h4>
-            <p className="text-sm font-bold text-slate-400 mb-8 leading-relaxed">
-              這項動作將無法撤銷，<br />
-              該筆行程與支出紀錄將會消失。
-            </p>
-            <div className="flex flex-col w-full space-y-3">
-              <button
-                onClick={confirmDelete}
-                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black text-sm shadow-lg shadow-red-200 hover:bg-red-600 transition-all active:scale-95"
-              >
-                確認刪除
-              </button>
-              <button
-                onClick={() => setDeleteId(null)}
-                className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-200 transition-all active:scale-95"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModernModal
+        isOpen={!!deleteId}
+        type="confirm"
+        title="確定要刪除嗎？"
+        message="這項動作將無法撤銷，該筆行程與支出紀錄將會消失。"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 };

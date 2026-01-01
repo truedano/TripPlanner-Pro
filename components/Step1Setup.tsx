@@ -4,14 +4,16 @@ import { TripData, DayPlan, ExpenseCategory } from '../types';
 import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ApiKeyManager } from '../utils/apiKeyManager';
+import { ModalType } from './ModernModal';
 
 interface Props {
   tripData: TripData;
   onUpdate: (updates: Partial<TripData>) => void;
   onNext: () => void;
+  showAlert: (title: string, message: string, type?: ModalType) => void;
 }
 
-export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
+export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAlert }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   // 使用本地狀態來處理輸入，解決 IME (中文輸入法) 被重新渲染打斷的問題
   const [localName, setLocalName] = useState(tripData.name);
@@ -48,7 +50,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
     try {
       const apiKey = ApiKeyManager.get();
       if (!apiKey) {
-        alert('請先點擊右上角「設定」按鈕設定您的 Google API Key 才能使用 AI 功能。');
+        showAlert('設定未完成', '請先點擊右上角「設定」按鈕設定您的 Google API Key 才能使用 AI 功能。', 'warning');
         setIsGenerating(false);
         return;
       }
@@ -144,7 +146,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext }) => {
       onNext();
     } catch (error) {
       console.error('AI generation failed:', error);
-      alert('AI 規劃失敗，請檢查網路或稍後再試。');
+      showAlert('AI 規劃失敗', '規劃過程發生錯誤，請檢查網路連線或稍後再試。', 'confirm');
     } finally {
       setIsGenerating(false);
     }
