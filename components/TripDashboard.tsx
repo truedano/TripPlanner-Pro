@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { TripData } from '../types';
-import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart, Download, Upload, CloudUpload, Loader2 } from 'lucide-react';
+import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart, Download, Upload, CloudUpload, Loader2, CloudCheck, Cloud } from 'lucide-react';
 import { ModalType } from './ModernModal';
 import { saveTripToDrive } from '../utils/googleDrive';
 
@@ -11,9 +11,16 @@ interface Props {
   onCreate: () => void;
   onImport: (trips: TripData[]) => void;
   showAlert: (title: string, message: string, type?: ModalType) => void;
+  cloudStatus: 'disconnected' | 'connecting' | 'connected';
+  cloudUser: any;
+  onConnectCloud: () => void;
+  onLogoutCloud: () => void;
 }
 
-export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCreate, onImport, showAlert }) => {
+export const TripDashboard: React.FC<Props> = ({
+  trips, onSelect, onDelete, onCreate, onImport, showAlert,
+  cloudStatus, cloudUser, onConnectCloud, onLogoutCloud
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
@@ -106,7 +113,7 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
         <div>
           <div className="flex items-center space-x-2 text-rose-400 mb-2">
             <Heart className="w-4 h-4 fill-current" />
@@ -130,6 +137,47 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
           >
             <Download className="w-3.5 h-3.5 mr-1.5" /> 匯出所有
           </button>
+        </div>
+      </div>
+
+      {/* Cloud Sync Status Card */}
+      <div className="mb-12 no-print">
+        <div className={`p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row items-center justify-between gap-6 ${cloudStatus === 'connected' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+          <div className="flex items-center space-x-5 text-center md:text-left">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${cloudStatus === 'connected' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-200 text-slate-400'}`}>
+              {cloudStatus === 'connecting' ? <Loader2 className="w-6 h-6 animate-spin" /> : <CloudUpload className="w-6 h-6" />}
+            </div>
+            <div>
+              <div className="flex items-center justify-center md:justify-start space-x-2 mb-1">
+                <h3 className="font-black text-slate-900">Google Cloud 全自動備份</h3>
+                {cloudStatus === 'connected' && <span className="flex items-center text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">已連線</span>}
+              </div>
+              <p className="text-xs font-bold text-slate-500">
+                {cloudStatus === 'connected'
+                  ? `正以 ${cloudUser?.emailAddress || '您的帳號'} 同步所有行程`
+                  : '連接 Google Drive 以啟用全自動後台同步與多裝置存取'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {cloudStatus === 'connected' ? (
+              <button
+                onClick={onLogoutCloud}
+                className="px-6 py-3 bg-white text-slate-400 hover:text-rose-500 border border-slate-100 rounded-2xl text-xs font-black transition-all hover:bg-rose-50"
+              >
+                斷開連線
+              </button>
+            ) : (
+              <button
+                onClick={onConnectCloud}
+                disabled={cloudStatus === 'connecting'}
+                className="px-8 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black shadow-xl shadow-slate-200 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+              >
+                {cloudStatus === 'connecting' ? '連線中...' : '立即連線 Google Drive'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -244,9 +292,24 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
                   </div>
 
                   <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">
-                      JOURNAL UPDATED {new Date(trip.lastModified).toLocaleDateString()}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest leading-none mb-1">
+                        JOURNAL UPDATED {new Date(trip.lastModified).toLocaleDateString()}
+                      </span>
+                      {cloudStatus === 'connected' && (
+                        <div className="flex items-center">
+                          {trip.lastSyncedAt && trip.lastSyncedAt >= trip.lastModified ? (
+                            <span className="text-[10px] text-emerald-500 font-black flex items-center">
+                              <CloudCheck className="w-3 h-3 mr-1" /> CLOUD SYNCED
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-300 font-black flex items-center italic">
+                              <CloudUpload className="w-3 h-3 mr-1" /> PENDING SYNC...
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-all">
                       <ChevronRight className="w-5 h-5" />
                     </div>

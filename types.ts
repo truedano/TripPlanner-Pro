@@ -55,6 +55,7 @@ export interface TripData {
   endDate: string;
   days: DayPlan[];
   lastModified: number;
+  lastSyncedAt?: number;
   totalBudget?: number;
   currency?: string;
   customRequirements?: string;
