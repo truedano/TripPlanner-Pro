@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Key, X, ExternalLink, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { ApiKeyManager } from '../utils/apiKeyManager';
+import { logoutGoogle } from '../utils/googleDrive';
 
 interface Props {
     isOpen: boolean;
@@ -41,6 +42,7 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
 
     const handleClear = () => {
         ApiKeyManager.remove();
+        logoutGoogle();
         setKey('');
         setError('');
         onSave();

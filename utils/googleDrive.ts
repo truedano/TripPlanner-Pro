@@ -17,6 +17,10 @@ let tokenClient: any;
 let gapiInited = false;
 let gisInited = false;
 
+// Persistent keys
+const TOKEN_KEY = 'tj_gdrive_access_token';
+const EXPIRES_KEY = 'tj_gdrive_token_expires';
+
 export const initGoogleServices = async () => {
     if (!CLIENT_ID) {
         console.warn('Google Client ID is missing. Google Drive features will not work.');
@@ -28,7 +32,6 @@ export const initGoogleServices = async () => {
             if (window.gapi) {
                 window.gapi.load('client', async () => {
                     await window.gapi.client.init({
-                        // apiKey: API_KEY, // Optional for Drive strictly with OAuth, but good for discovery
                         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
                     });
                     gapiInited = true;
@@ -44,7 +47,12 @@ export const initGoogleServices = async () => {
                 tokenClient = window.google.accounts.oauth2.initTokenClient({
                     client_id: CLIENT_ID,
                     scope: SCOPES,
-                    callback: '', // defined at request time
+                    callback: (resp: any) => {
+                        if (resp.access_token) {
+                            localStorage.setItem(TOKEN_KEY, resp.access_token);
+                            localStorage.setItem(EXPIRES_KEY, (Date.now() + (resp.expires_in * 1000)).toString());
+                        }
+                    },
                 });
                 gisInited = true;
                 if (gapiInited) resolve(true);
@@ -59,6 +67,14 @@ export const initGoogleServices = async () => {
 };
 
 export const getAccessToken = (): Promise<string> => {
+    // Check localStorage for a valid cached token (with 5 min buffer)
+    const cachedToken = localStorage.getItem(TOKEN_KEY);
+    const expiresAt = parseInt(localStorage.getItem(EXPIRES_KEY) || '0');
+
+    if (cachedToken && Date.now() < expiresAt - 300000) {
+        return Promise.resolve(cachedToken);
+    }
+
     return new Promise((resolve, reject) => {
         if (!tokenClient) {
             reject(new Error('Google Client not initialized'));
@@ -68,13 +84,14 @@ export const getAccessToken = (): Promise<string> => {
         tokenClient.callback = (resp: any) => {
             if (resp.error !== undefined) {
                 reject(resp);
+                return;
             }
+            localStorage.setItem(TOKEN_KEY, resp.access_token);
+            localStorage.setItem(EXPIRES_KEY, (Date.now() + (resp.expires_in * 1000)).toString());
             resolve(resp.access_token);
         };
 
-        // Prompt the user for consent
-        // skip_prompt: true only works if we already authorized.
-        // simpler to just ask always or let GIS handle it (it auto-skips if valid usually)
+        // prompt: '' will attempt to reuse existing session if possible
         tokenClient.requestAccessToken({ prompt: '' });
     });
 };
@@ -101,8 +118,10 @@ export const saveTripToDrive = async (trip: TripData) => {
 
     const files = response.result.files;
     const fileContent = JSON.stringify(trip, null, 2);
+    // 檔名加入 ID 前 8 碼以區分不同裝置產生的同名行程
+    const shortId = trip.id.includes('-') ? trip.id.split('-')[0] : trip.id.substring(0, 8);
     const fileMetadata = {
-        name: `[TripPlanner] ${trip.name}.json`,
+        name: `[TripPlanner] ${trip.name}_${shortId}.json`,
         mimeType: 'application/json',
         appProperties: {
             tripId: trip.id,
@@ -182,4 +201,9 @@ const updateFile = async (fileId: string, metadata: any, content: string) => {
     });
 
     return await request;
+};
+
+export const logoutGoogle = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(EXPIRES_KEY);
 };
