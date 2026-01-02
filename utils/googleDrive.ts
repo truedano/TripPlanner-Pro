@@ -21,6 +21,10 @@ let gisInited = false;
 const TOKEN_KEY = 'tj_gdrive_access_token';
 const EXPIRES_KEY = 'tj_gdrive_token_expires';
 
+export const isGoogleSyncEnabled = () => {
+    return !!CLIENT_ID && !!localStorage.getItem(TOKEN_KEY);
+};
+
 export const initGoogleServices = async () => {
     if (!CLIENT_ID) {
         console.warn('Google Client ID is missing. Google Drive features will not work.');
@@ -66,13 +70,17 @@ export const initGoogleServices = async () => {
     });
 };
 
-export const getAccessToken = (): Promise<string> => {
+export const getAccessToken = (silent = false): Promise<string> => {
     // Check localStorage for a valid cached token (with 5 min buffer)
     const cachedToken = localStorage.getItem(TOKEN_KEY);
     const expiresAt = parseInt(localStorage.getItem(EXPIRES_KEY) || '0');
 
     if (cachedToken && Date.now() < expiresAt - 300000) {
         return Promise.resolve(cachedToken);
+    }
+
+    if (silent) {
+        return Promise.reject(new Error('Silent sync: No valid token available'));
     }
 
     return new Promise((resolve, reject) => {
@@ -96,16 +104,13 @@ export const getAccessToken = (): Promise<string> => {
     });
 };
 
-export const saveTripToDrive = async (trip: TripData) => {
+export const saveTripToDrive = async (trip: TripData, silent = false) => {
     if (!gapiInited || !gisInited) {
         const success = await initGoogleServices();
         if (!success) throw new Error('Failed to initialize Google Services');
     }
 
-    // Check if we have a token (simple check, GAPI client usually handles usage if we set token)
-    // But wait, gapi.client needs the token set.
-    // We need to request token first.
-    const token = await getAccessToken();
+    const token = await getAccessToken(silent);
     window.gapi.client.setToken({ access_token: token });
 
     // 1. Search for existing file with this trip ID in appProperties
@@ -139,18 +144,11 @@ export const saveTripToDrive = async (trip: TripData) => {
     }
 };
 
-const createMultipartBody = (metadata: any, content: string, isUpdate: boolean) => {
-    return null;
-}
-
 // Helper for Create
 const createFile = async (metadata: any, content: string) => {
     const boundary = '314159265358979323846'; // Simple boundary
     const delimiter = "\r\n--" + boundary + "\r\n";
     const close_delim = "\r\n--" + boundary + "--";
-
-    // RFC 1341: The first boundary does not need a leading CRLF if it's the start of the body, 
-    // but the delimiter variable has it. Let's construct it carefully.
 
     // Body construction
     const multipartRequestBody =

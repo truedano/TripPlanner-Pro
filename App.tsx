@@ -1,14 +1,14 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TripDashboard } from './components/TripDashboard';
 import { Step1Setup } from './components/Step1Setup';
 import { Step2Editor } from './components/Step2Editor';
 import { Step3Summary } from './components/Step3Summary';
 import { TripData, Step } from './types';
-import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2, Settings } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2, Settings, Cloud, CloudOff, CloudCheck } from 'lucide-react';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ModernModal, ModalType } from './components/ModernModal';
 import { db } from './db';
+import { saveTripToDrive, isGoogleSyncEnabled } from './utils/googleDrive';
 
 const TRIPS_STORAGE_KEY_LEGACY = 'trip_planner_all_trips';
 const ACTIVE_TRIP_ID_KEY = 'trip_planner_active_id';
@@ -20,6 +20,8 @@ const App: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Modal State
   const [modalConfig, setModalConfig] = useState<{
@@ -134,12 +136,30 @@ const App: React.FC = () => {
   const handleUpdateActiveTrip = async (updates: Partial<TripData>) => {
     if (!activeTripId) return;
     const now = Date.now();
+    const updatedTrip = { ...activeTrip, ...updates, lastModified: now } as TripData;
+
     await db.trips.update(activeTripId, { ...updates, lastModified: now });
     setTrips(prev => prev.map(t =>
-      t.id === activeTripId
-        ? { ...t, ...updates, lastModified: now }
-        : t
+      t.id === activeTripId ? updatedTrip : t
     ));
+
+    // 自動同步邏輯
+    if (isGoogleSyncEnabled()) {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      setSyncStatus('syncing');
+
+      syncTimeoutRef.current = setTimeout(async () => {
+        try {
+          await saveTripToDrive(updatedTrip, true); // true = silent sync
+          setSyncStatus('synced');
+          // 3 秒後回到 idle
+          setTimeout(() => setSyncStatus('idle'), 3000);
+        } catch (err) {
+          console.error('Auto-sync failed:', err);
+          setSyncStatus('error');
+        }
+      }, 3000); // 3 秒防抖
+    }
   };
 
   const handleImportTrips = async (importedTrips: TripData[]) => {
@@ -260,6 +280,35 @@ const App: React.FC = () => {
             )}
 
             <div className="flex items-center space-x-3">
+              {step !== Step.DASHBOARD && activeTrip && isGoogleSyncEnabled() && (
+                <div className="flex items-center mr-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100 transition-all">
+                  {syncStatus === 'syncing' && (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin mr-2" />
+                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">同步中</span>
+                    </>
+                  )}
+                  {syncStatus === 'synced' && (
+                    <>
+                      <CloudCheck className="w-3.5 h-3.5 text-emerald-500 mr-2" />
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">已雲端備份</span>
+                    </>
+                  )}
+                  {syncStatus === 'idle' && (
+                    <>
+                      <Cloud className="w-3.5 h-3.5 text-slate-300 mr-2" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">雲端已連線</span>
+                    </>
+                  )}
+                  {syncStatus === 'error' && (
+                    <>
+                      <CloudOff className="w-3.5 h-3.5 text-rose-500 mr-2" />
+                      <span className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">同步失敗</span>
+                    </>
+                  )}
+                </div>
+              )}
+
               {step === Step.DASHBOARD ? (
                 <button
                   onClick={handleCreateNewTrip}
@@ -279,6 +328,7 @@ const App: React.FC = () => {
                     onClick={() => {
                       setActiveTripId(null);
                       setStep(Step.DASHBOARD);
+                      setSyncStatus('idle');
                     }}
                     className="px-5 py-2.5 text-xs font-black text-slate-600 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest"
                   >
