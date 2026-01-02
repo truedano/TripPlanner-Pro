@@ -1,7 +1,8 @@
-
 import React, { useState } from 'react';
 import { TripData, SpotType } from '../types';
-import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, Info, ListOrdered, MapPin, Car, Bed, Utensils } from 'lucide-react';
+import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, ListOrdered, MapPin, Car, Bed, Utensils } from 'lucide-react';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { TripPdfDocument } from './TripPdfDocument';
 
 interface Props {
   tripData: TripData;
@@ -9,8 +10,6 @@ interface Props {
 
 export const Step3Summary: React.FC<Props> = ({ tripData }) => {
   const [viewMode, setViewMode] = useState<'itinerary' | 'journal' | 'budget'>('journal');
-
-  const handlePrint = () => window.print();
 
   if (!tripData.days || tripData.days.length === 0) return null;
 
@@ -50,22 +49,40 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
             <span>{tripData.startDate} — {tripData.endDate}</span>
           </div>
 
-          <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100">
-            <button onClick={() => setViewMode('journal')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'journal' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
-              回憶日誌
-            </button>
-            <button onClick={() => setViewMode('itinerary')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'itinerary' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
-              條列行程
-            </button>
-            <button onClick={() => setViewMode('budget')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'budget' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
-              財務報告
-            </button>
+          <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100">
+              <button onClick={() => setViewMode('journal')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'journal' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+                回憶日誌
+              </button>
+              <button onClick={() => setViewMode('itinerary')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'itinerary' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+                條列行程
+              </button>
+              <button onClick={() => setViewMode('budget')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'budget' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
+                財務報告
+              </button>
+            </div>
+
+            <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100 items-center">
+              <PDFDownloadLink
+                document={<TripPdfDocument tripData={tripData} viewMode={viewMode} />}
+                fileName={`${tripData.name || '旅程'}_${viewMode === 'journal' ? '回憶日誌' : viewMode === 'itinerary' ? '行程表' : '財務報告'}.pdf`}
+                className="flex items-center px-6 py-2 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                {({ loading, error }) => {
+                  if (error) {
+                    console.error('PDF Generation Error:', error);
+                    return <span className="flex items-center text-rose-500 text-xs"><AlertCircle className="w-4 h-4 mr-2" /> {error.toString() || '匯出失敗'}</span>;
+                  }
+                  return loading ? (
+                    <span className="flex items-center text-slate-400"><Printer className="w-4 h-4 mr-2 animate-pulse" /> 準備中...</span>
+                  ) : (
+                    <span className="flex items-center"><Printer className="w-4 h-4 mr-2" /> 下載 PDF</span>
+                  );
+                }}
+              </PDFDownloadLink>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center bg-white/80 backdrop-blur-xl border border-slate-100 p-2 rounded-3xl shadow-2xl z-[60] no-print">
-        <button onClick={handlePrint} className="flex items-center px-6 py-3 text-slate-700 font-black text-sm hover:bg-slate-50 rounded-2xl"><Printer className="w-4 h-4 mr-2" /> 列印 / PDF</button>
       </div>
 
       {viewMode === 'budget' ? (
