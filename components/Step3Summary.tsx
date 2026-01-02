@@ -152,24 +152,127 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
             </div>
           </div>
 
-          <div className={`${isBudgetSet && budgetProgress > 100 ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'} p-10 rounded-[3rem] border transition-colors`}>
-            <div className="flex items-center justify-between mb-4">
-              <span className={`text-sm font-black uppercase tracking-widest ${isBudgetSet && budgetProgress > 100 ? 'text-rose-800' : 'text-slate-400'}`}>
-                {isBudgetSet ? '預算執行進度' : '支出統計中'}
-              </span>
-              <span className={`text-sm font-black ${isBudgetSet && budgetProgress > 100 ? 'text-rose-800' : 'text-slate-400'}`}>
-                {isBudgetSet ? `${budgetProgress.toFixed(1)}%` : '--'}
-              </span>
-            </div>
-            <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner">
-              <div className={`h-full rounded-full transition-all duration-1000 ${budgetProgress > 100 ? 'bg-rose-600' : 'bg-emerald-500'}`} style={{ width: `${Math.min(budgetProgress, 100)}%` }}></div>
-            </div>
-            {isBudgetSet && budgetProgress > 100 && (
-              <div className="mt-4 flex items-center justify-center space-x-2 text-rose-600 animate-pulse">
-                <AlertCircle className="w-4 h-4" />
-                <p className="text-xs font-black italic tracking-wide">注意：已超出預期支出上限！</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {/* 圓餅圖看板 */}
+            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-10">
+              <div className="relative w-48 h-48 shrink-0">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                  {(() => {
+                    const categories = [
+                      { type: SpotType.MEAL, color: '#F43F5E', label: '伙食' },
+                      { type: SpotType.TRANSPORT, color: '#F97316', label: '交通' },
+                      { type: SpotType.STAY, color: '#A855F7', label: '住宿' },
+                      { type: SpotType.SPOT, color: '#3B82F6', label: '景點' },
+                    ];
+                    const catTotals = categories.map(cat => ({
+                      ...cat,
+                      total: allSpots
+                        .filter(s => (s.type || SpotType.SPOT) === cat.type)
+                        .reduce((sum, s) => sum + (s.expenses?.reduce((acc, e) => acc + (e.amount || 0), 0) || 0), 0)
+                    })).filter(c => c.total > 0);
+
+                    const grandTotal = catTotals.reduce((a, b) => a + b.total, 0) || 1;
+                    let accumulatedPercent = 0;
+
+                    return (
+                      <>
+                        <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                        {catTotals.map((cat, i) => {
+                          const percent = (cat.total / grandTotal) * 100;
+                          const offset = accumulatedPercent * 2.512;
+                          accumulatedPercent += percent;
+                          return (
+                            <circle
+                              key={i}
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="transparent"
+                              stroke={cat.color}
+                              strokeWidth="12"
+                              strokeDasharray={`${percent * 2.512} 251.2`}
+                              strokeDashoffset={-offset}
+                              strokeLinecap="round"
+                              className="transition-all duration-1000"
+                            />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">總開銷</span>
+                  <span className="text-xl font-black text-slate-800 tracking-tighter">{isBudgetSet ? ((totalActual / budget) * 100).toFixed(0) : '0'}%</span>
+                </div>
               </div>
-            )}
+
+              <div className="flex-grow space-y-4 w-full">
+                {(() => {
+                  const categories = [
+                    { type: SpotType.MEAL, color: 'bg-rose-500', label: '伙食' },
+                    { type: SpotType.TRANSPORT, color: 'bg-orange-500', label: '交通' },
+                    { type: SpotType.STAY, color: 'bg-purple-500', label: '住宿' },
+                    { type: SpotType.SPOT, color: 'bg-blue-500', label: '景點' },
+                  ];
+                  const grandTotal = totalActual || 1;
+                  return categories.map(cat => {
+                    const total = allSpots
+                      .filter(s => (s.type || SpotType.SPOT) === cat.type)
+                      .reduce((sum, s) => sum + (s.expenses?.reduce((acc, e) => acc + (e.amount || 0), 0) || 0), 0);
+                    const percent = (total / grandTotal) * 100;
+                    return (
+                      <div key={cat.type} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${cat.color}`} />
+                          <span className="text-sm font-bold text-slate-600">{cat.label}</span>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <span className="text-xs font-black text-slate-400">{percent.toFixed(1)}%</span>
+                          <span className="text-sm font-black text-slate-800 w-24 text-right">{currency} {total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            {/* 進度看板 */}
+            <div className={`${isBudgetSet && budgetProgress > 100 ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'} p-10 rounded-[3rem] border transition-colors h-full flex flex-col justify-center`}>
+              <div className="flex items-center justify-between mb-4">
+                <span className={`text-sm font-black uppercase tracking-widest ${isBudgetSet && budgetProgress > 100 ? 'text-rose-800' : 'text-slate-400'}`}>
+                  {isBudgetSet ? '預算執行進度' : '支出統計中'}
+                </span>
+                <span className={`text-sm font-black ${isBudgetSet && budgetProgress > 100 ? 'text-rose-800' : 'text-slate-400'}`}>
+                  {isBudgetSet ? `${budgetProgress.toFixed(1)}%` : '--'}
+                </span>
+              </div>
+              <div className="h-6 w-full bg-white rounded-full overflow-hidden shadow-inner p-1">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 flex items-center justify-end px-2 ${budgetProgress > 100 ? 'bg-rose-600' : 'bg-emerald-500'}`}
+                  style={{ width: `${Math.min(budgetProgress, 100)}%` }}
+                >
+                  {budgetProgress > 15 && <div className="w-1 h-1 bg-white/40 rounded-full animate-pulse" />}
+                </div>
+              </div>
+              {isBudgetSet && (
+                <div className="mt-8 flex justify-between items-end">
+                  <div>
+                    <span className="block text-[10px] font-black text-slate-400 uppercase mb-1">剩餘預算額度</span>
+                    <span className={`text-2xl font-serif font-black italic ${budget - totalActual < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {currency} {(budget - totalActual).toLocaleString()}
+                    </span>
+                  </div>
+                  {budgetProgress > 100 && (
+                    <div className="flex items-center text-rose-600 animate-pulse bg-white px-3 py-1 rounded-full shadow-sm border border-rose-100" title="已超出總預算">
+                      <AlertCircle className="w-4 h-4 mr-1.5" />
+                      <p className="text-[10px] font-black italic tracking-wide">注意：已超支</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden">
@@ -220,7 +323,6 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
               )}
             </div>
 
-            {/* 裝飾性漸層 */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white/50 to-transparent pointer-events-none"></div>
           </div>
         </div>
@@ -268,7 +370,6 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="flex items-center text-blue-500 hover:text-blue-600 font-black text-[10px] uppercase tracking-widest"
-                                  title="在 Google Maps 中開啟"
                                 >
                                   <MapPin className="w-3 h-3 mr-1" />
                                   <span>地圖</span>
