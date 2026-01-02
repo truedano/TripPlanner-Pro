@@ -1,25 +1,23 @@
 import CryptoJS from 'crypto-js';
 
-export const STORAGE_KEY = 'trip_journal_gemini_api_key'; // Use a new identification prefix
+export const trip_journal_gemini_api_key = 'trip_journal_gemini_api_key';
+const SYSTEM_SECRET = 'trip_planner_pro_secure_v1_system_key';
 
 interface StoredApiKey {
     encrypted: string;
     isEncrypted: boolean;
 }
 
-// In-memory cache for the decrypted key during the session
-let sessionKey: string | null = null;
-
 export const ApiKeyManager = {
-    // Encrypt the key with a password
-    encrypt: (text: string, password: string): string => {
-        return CryptoJS.AES.encrypt(text, password).toString();
+    // Encrypt the key with system secret
+    encrypt: (text: string): string => {
+        return CryptoJS.AES.encrypt(text, SYSTEM_SECRET).toString();
     },
 
-    // Decrypt the key with a password
-    decrypt: (encrypted: string, password: string): string | null => {
+    // Decrypt the key with system secret
+    decrypt: (encrypted: string): string | null => {
         try {
-            const bytes = CryptoJS.AES.decrypt(encrypted, password);
+            const bytes = CryptoJS.AES.decrypt(encrypted, SYSTEM_SECRET);
             const originalText = bytes.toString(CryptoJS.enc.Utf8);
             return originalText || null;
         } catch (e) {
@@ -27,56 +25,39 @@ export const ApiKeyManager = {
         }
     },
 
-    // Save the key (optionally encrypted)
-    save: (key: string, password?: string) => {
+    // Save the key (always encrypted with system secret)
+    save: (key: string) => {
         if (!key) return;
         const trimmedKey = key.trim();
 
-        let data: StoredApiKey;
-        if (password) {
-            data = {
-                encrypted: ApiKeyManager.encrypt(trimmedKey, password),
-                isEncrypted: true
-            };
-            sessionKey = trimmedKey;
-        } else {
-            // If no password provided, store in plain text (not recommended but for backward compatibility/simplicity)
-            // Actually, let's force encryption or at least store it in a way we know it's not encrypted
-            data = {
-                encrypted: trimmedKey,
-                isEncrypted: false
-            };
-            sessionKey = trimmedKey;
-        }
+        const data: StoredApiKey = {
+            encrypted: ApiKeyManager.encrypt(trimmedKey),
+            isEncrypted: true
+        };
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(trip_journal_gemini_api_key, JSON.stringify(data));
         // Remove old plain text key if exists
         localStorage.removeItem('gemini_api_key');
     },
 
-    // Get the key from cache or storage
-    get: (password?: string): string | null => {
-        if (sessionKey) return sessionKey;
-
-        const stored = localStorage.getItem(STORAGE_KEY);
+    // Get the key (auto-decrypt)
+    get: (): string | null => {
+        const stored = localStorage.getItem(trip_journal_gemini_api_key);
         if (!stored) {
-            // Fallback to legacy key for transition
+            // Fallback to legacy key
             return localStorage.getItem('gemini_api_key');
         }
 
         try {
             const data: StoredApiKey = JSON.parse(stored);
-            if (!data.isEncrypted) {
-                sessionKey = data.encrypted;
-                return sessionKey;
-            }
 
-            if (password) {
-                const decrypted = ApiKeyManager.decrypt(data.encrypted, password);
-                if (decrypted) {
-                    sessionKey = decrypted;
-                    return sessionKey;
-                }
+            // Try to decrypt with system secret
+            const decrypted = ApiKeyManager.decrypt(data.encrypted);
+            if (decrypted) return decrypted;
+
+            // Fallback for transition: if it was somehow stored as plaintext marked as encrypted=false
+            if (data.isEncrypted === false) {
+                return data.encrypted;
             }
         } catch (e) {
             return null;
@@ -85,32 +66,19 @@ export const ApiKeyManager = {
         return null;
     },
 
-    // Check if a key exists
+    // Check if a key exists and is valid
     hasKey: (): boolean => {
-        return !!localStorage.getItem(STORAGE_KEY) || !!localStorage.getItem('gemini_api_key');
+        return !!ApiKeyManager.get();
     },
 
-    // Check if the stored key needs a password to unlock
+    // Always false as we don't have user-locked keys anymore
     isLocked: (): boolean => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) return false;
-        try {
-            const data: StoredApiKey = JSON.parse(stored);
-            return data.isEncrypted && !sessionKey;
-        } catch (e) {
-            return false;
-        }
+        return false;
     },
 
     // Remove the key
     remove: () => {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(trip_journal_gemini_api_key);
         localStorage.removeItem('gemini_api_key');
-        sessionKey = null;
-    },
-
-    // Set session key directly (after independent validation if needed)
-    setSessionKey: (key: string) => {
-        sessionKey = key;
     }
 };

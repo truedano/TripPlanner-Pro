@@ -57,11 +57,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
     try {
       const apiKey = ApiKeyManager.get();
       if (!apiKey) {
-        if (ApiKeyManager.isLocked()) {
-          showAlert('API Key 已鎖定', '您的 API Key 已加密儲存，請點擊右上角「設定」圖示輸入密碼解鎖後再繼續。', 'warning');
-        } else {
-          showAlert('設定未完成', '請先點擊右上角「設定」圖示設定您的 Google API Key 才能使用 AI 功能。', 'warning');
-        }
+        showAlert('設定未完成', '請先點擊右上角「設定」圖示設定您的 Google API Key 才能使用 AI 功能。', 'warning');
         setIsGenerating(false);
         return;
       }
