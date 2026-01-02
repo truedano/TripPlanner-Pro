@@ -10,6 +10,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { ModernModal, ModalType } from './components/ModernModal';
 import { db } from './db';
 import { saveTripToDrive, isGoogleSyncEnabled, initGoogleServices, getAccessToken, getCloudConnection, loginGoogle, logoutGoogle, getDriveProfile, listAllTripsFromDrive, downloadFileContent, deleteTripFromDrive } from './utils/googleDrive';
+import packageJson from './package.json';
 
 const TRIPS_STORAGE_KEY_LEGACY = 'trip_planner_all_trips';
 const ACTIVE_TRIP_ID_KEY = 'trip_planner_active_id';
@@ -321,8 +322,9 @@ const App: React.FC = () => {
           }}
           className="flex flex-col items-start group flex-shrink-0"
         >
-          <h1 className="text-xl md:text-2xl font-serif font-black italic tracking-tighter group-hover:text-blue-600 transition-colors">
+          <h1 className="text-xl md:text-2xl font-serif font-black italic tracking-tighter group-hover:text-blue-600 transition-colors flex items-baseline">
             TripPlanner<span className="text-blue-600">.</span>Pro
+            <span className="ml-2 text-[8px] md:text-[10px] font-sans font-medium italic tracking-normal text-slate-300">v{packageJson.version}</span>
           </h1>
           <span className="hidden sm:inline text-[9px] font-black uppercase tracking-[0.4em] text-slate-300">By truedano</span>
         </button>
