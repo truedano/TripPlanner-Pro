@@ -59,15 +59,15 @@ const DroppableDayTab: React.FC<DroppableDayTabProps> = ({
       type="button"
       ref={setNodeRef}
       onClick={onClick}
-      className={`relative px-6 py-3 rounded-2xl font-black transition-all flex flex-col items-center flex-shrink-0 ${isActive
+      className={`relative px-6 py-4 min-w-[5rem] rounded-2xl font-black transition-all flex flex-col items-center flex-shrink-0 ${isActive
         ? 'bg-blue-600 text-white shadow-xl -translate-y-1'
         : isOver
           ? 'bg-blue-100 text-blue-600 border-2 border-blue-300 scale-105'
           : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200'
         }`}
     >
-      <span className="text-[10px] opacity-70 uppercase">Day {dayIndex + 1}</span>
-      <span className="text-sm">{new Date(date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}</span>
+      <span className="text-[10px] opacity-70 uppercase leading-none mb-1">Day {dayIndex + 1}</span>
+      <span className="text-sm leading-none">{new Date(date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}</span>
     </button>
   );
 };
@@ -486,7 +486,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex space-x-2 overflow-x-auto pb-4 mb-6 no-scrollbar items-center">
+        <div className="flex space-x-2 overflow-x-auto p-2 pb-4 mb-6 no-scrollbar items-center">
           {tripData.days.map((day, idx) => (
             <DroppableDayTab
               key={day.date}
