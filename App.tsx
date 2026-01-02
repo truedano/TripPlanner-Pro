@@ -9,7 +9,7 @@ import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, T
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ModernModal, ModalType } from './components/ModernModal';
 import { db } from './db';
-import { saveTripToDrive, isGoogleSyncEnabled, initGoogleServices, getAccessToken, getCloudConnection, loginGoogle, logoutGoogle, getDriveProfile } from './utils/googleDrive';
+import { saveTripToDrive, isGoogleSyncEnabled, initGoogleServices, getAccessToken, getCloudConnection, loginGoogle, logoutGoogle, getDriveProfile, listAllTripsFromDrive, downloadFileContent, deleteTripFromDrive } from './utils/googleDrive';
 
 const TRIPS_STORAGE_KEY_LEGACY = 'trip_planner_all_trips';
 const ACTIVE_TRIP_ID_KEY = 'trip_planner_active_id';
@@ -37,11 +37,13 @@ const App: React.FC = () => {
         const success = await initGoogleServices();
         if (success) {
           try {
-            await getAccessToken(true); // Silent check
+            const token = await getAccessToken(true); // Silent check
+            window.gapi.client.setToken({ access_token: token }); // 重要：必須手動設定 Token 給 GAPI
             if (getCloudConnection() === 'connected') {
               setCloudStatus('connected');
               const profile = await getDriveProfile();
               if (profile) setCloudUser(profile);
+              await syncAllFromCloud();
             } else {
               setCloudStatus('disconnected');
             }
@@ -56,13 +58,64 @@ const App: React.FC = () => {
     initCloud();
   }, []);
 
+  const syncAllFromCloud = async () => {
+    if (getCloudConnection() !== 'connected') return;
+    setSyncStatus('syncing');
+    try {
+      const driveFiles = await listAllTripsFromDrive();
+      const localTrips = await db.trips.toArray();
+
+      for (const file of driveFiles) {
+        const tripId = file.appProperties?.tripId;
+        if (!tripId) continue;
+
+        const remoteTrip = await downloadFileContent(file.id);
+        if (!remoteTrip) continue;
+
+        const localMatch = localTrips.find(t => t.id === tripId);
+
+        if (!localMatch) {
+          // 本地沒有，直接新增
+          await db.trips.add(remoteTrip);
+          setTrips(prev => [...prev.filter(t => t.id !== tripId), remoteTrip]);
+        } else if ((remoteTrip.lastModified || 0) > (localMatch.lastModified || 0)) {
+          // 雲端較新，更新本地
+          await db.trips.put(remoteTrip);
+          setTrips(prev => prev.map(t => t.id === tripId ? remoteTrip : t));
+        }
+      }
+
+      // --- 新增：處理遠端已刪除的連動 ---
+      const driveTripIds = driveFiles.map(f => f.appProperties?.tripId).filter(Boolean);
+      for (const localTrip of localTrips) {
+        // 如果該行程「曾經同步過」(lastSyncedAt 有值)，但現在雲端清單中找不到了
+        if (localTrip.lastSyncedAt && !driveTripIds.includes(localTrip.id)) {
+          console.log(`Parity sync: Removing local trip ${localTrip.name} as it was deleted from cloud.`);
+          await db.trips.delete(localTrip.id);
+          setTrips(prev => prev.filter(t => t.id !== localTrip.id));
+          if (activeTripId === localTrip.id) setActiveTripId(null);
+        }
+      }
+
+      setSyncStatus('synced');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } catch (e) {
+      console.error('Full Sync Failed:', e);
+      setSyncStatus('error');
+    }
+  };
+
   // 全域後台同步任務：每 30 秒檢查是否有未備份的行程
   useEffect(() => {
     const backgroundSync = async () => {
       if (cloudStatus !== 'connected' || step !== Step.DASHBOARD) return;
 
       const unSyncedTrips = trips.filter(t => !t.lastSyncedAt || t.lastModified > t.lastSyncedAt);
-      if (unSyncedTrips.length === 0) return;
+      if (unSyncedTrips.length === 0) {
+        // 如果沒有要上傳的，就順便檢查有沒有要從雲端下載的更新
+        await syncAllFromCloud();
+        return;
+      }
 
       console.log(`Background Sync: ${unSyncedTrips.length} trips pending.`);
       for (const trip of unSyncedTrips) {
@@ -152,10 +205,16 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTrip = (id: string) => {
-    showAlert('刪除行程', '確定要永久刪除此行程嗎？此操作無法還原。', 'alert', async () => {
+    showAlert('刪除行程', '確定要永久刪除此行程嗎？此操作無法還原（包含雲端備份）。', 'alert', async () => {
+      // 1. 本地刪除
       await db.trips.delete(id);
       setTrips(prev => prev.filter(t => t.id !== id));
       if (activeTripId === id) setActiveTripId(null);
+
+      // 2. 雲端同步刪除
+      if (cloudStatus === 'connected') {
+        await deleteTripFromDrive(id);
+      }
     });
   };
 
@@ -202,6 +261,7 @@ const App: React.FC = () => {
       setCloudStatus('connected');
       const profile = await getDriveProfile();
       if (profile) setCloudUser(profile);
+      await syncAllFromCloud();
       showAlert('同步連線成功', '現在您的行程會自動備份至 Google Drive。', 'success');
     } catch (e: any) {
       console.error('Cloud connection failed', e);

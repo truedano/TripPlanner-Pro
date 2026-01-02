@@ -150,6 +150,38 @@ export const saveTripToDrive = async (trip: TripData, silent = false): Promise<n
     return now;
 };
 
+// 從雲端獲取所有行程檔案列表
+export const listAllTripsFromDrive = async () => {
+    if (!gapiInited || !gisInited) {
+        await initGoogleServices();
+    }
+    const token = await getAccessToken(true);
+    window.gapi.client.setToken({ access_token: token });
+
+    const q = "name contains '[TripPlanner]' and mimeType = 'application/json' and trashed = false";
+    const response = await window.gapi.client.drive.files.list({
+        q: q,
+        fields: 'files(id, name, appProperties)',
+        spaces: 'drive',
+    });
+
+    return response.result.files || [];
+};
+
+// 下載特定檔案內容
+export const downloadFileContent = async (fileId: string): Promise<TripData | null> => {
+    try {
+        const response = await window.gapi.client.drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+        });
+        return response.result;
+    } catch (e) {
+        console.error('Download failed', e);
+        return null;
+    }
+};
+
 // Helper for Create
 const createFile = async (metadata: any, content: string) => {
     const boundary = '314159265358979323846'; // Simple boundary
@@ -220,5 +252,34 @@ export const getDriveProfile = async () => {
         return response.result.user;
     } catch (e) {
         return null;
+    }
+};
+
+// 刪除雲端檔案
+export const deleteTripFromDrive = async (tripId: string) => {
+    if (!gapiInited || !gisInited) return;
+    try {
+        const token = await getAccessToken(true);
+        window.gapi.client.setToken({ access_token: token });
+
+        // 1. 先找出 ID 對應的檔案
+        const q = `appProperties has { key='tripId' and value='${tripId}' } and trashed=false`;
+        const searchResponse = await window.gapi.client.drive.files.list({
+            q: q,
+            fields: 'files(id)',
+            spaces: 'drive',
+        });
+
+        const files = searchResponse.result.files;
+        if (files && files.length > 0) {
+            // 2. 將其移至垃圾桶 (Delete 在 Drive API 通常指永久刪除，Trash 較安全)
+            await window.gapi.client.drive.files.update({
+                fileId: files[0].id,
+                trashed: true
+            });
+            console.log(`Cloud file for trip ${tripId} moved to trash.`);
+        }
+    } catch (e) {
+        console.error('Delete from Drive failed', e);
     }
 };
