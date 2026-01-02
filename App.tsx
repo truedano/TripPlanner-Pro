@@ -461,6 +461,7 @@ const App: React.FC = () => {
             onUpdate={handleUpdateActiveTrip}
             onBack={() => setStep(Step.SETUP)}
             onNext={() => setStep(Step.SUMMARY)}
+            showAlert={showAlert}
           />
         )}
         {step === Step.SUMMARY && activeTrip && (

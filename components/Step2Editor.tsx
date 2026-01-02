@@ -1,12 +1,15 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
-import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils } from 'lucide-react';
+import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import { DroppableDayTab } from './DroppableDayTab';
 import { SortableSpotItem } from './SortableSpotItem';
 import { SpotEditModal } from './SpotEditModal';
+import { GoogleGenAI, Type } from '@google/genai';
+import { ApiKeyManager } from '../utils/apiKeyManager';
+import { ModalType } from './ModernModal';
 import {
   DndContext,
   closestCenter,
@@ -29,9 +32,12 @@ import {
 interface Props {
   tripData: TripData;
   onUpdate: (updates: Partial<TripData>) => void;
+  onBack?: () => void;
+  onNext?: () => void;
+  showAlert: (title: string, message: string, type?: ModalType, onConfirm?: () => void) => void;
 }
 
-export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
+export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
@@ -40,6 +46,8 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [dismissedHintDay, setDismissedHintDay] = useState<number[]>([]);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -85,6 +93,85 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const dailyTotal = activeDay.spots.reduce((sum, spot) =>
     sum + (spot.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0
   );
+
+  const handleOptimizeRoute = async () => {
+    const spotsWithNames = activeDay.spots.filter(s => s.name);
+    if (spotsWithNames.length < 3) {
+      showAlert('無法優化', '當天至少需要 3 個地點才能進行路徑優化。', 'warning');
+      return;
+    }
+
+    const apiKey = ApiKeyManager.get();
+    if (!apiKey) {
+      showAlert('API 金鑰缺失', '請先設定 Gemini API 金鑰以使用路線優化功能。', 'warning');
+      return;
+    }
+
+    setIsOptimizing(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const inputData = spotsWithNames.map(s => ({ id: s.id, name: s.name, mapUrl: s.mapUrl }));
+
+      const prompt = `你是一位專業的日本旅遊與行程規劃專家。我有一份單日的旅遊景點清單（包含景點名稱與 Google Maps 連結）。
+請分析這些地點的相對位置，並回傳一個「優化後」最順路、且不繞路的推薦排序順序。
+
+**要求：**
+1. 僅根據地理位置進行排序。
+2. 回傳結果必須是一個 JSON ID 陣列，直接包含景點 ID 的順序即可。
+3. 如果輸入中有重複或邏輯可合併的地點，也請保留並排序。
+
+**輸入資料：**
+${JSON.stringify(inputData)}
+
+**輸出範例：**
+["uuid-1", "uuid-2", "uuid-3"]`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview', // 使用穩定的 Flash 模型
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json'
+        }
+      });
+
+      let responseText = response.text || '[]';
+      responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const optimizedIds = JSON.parse(responseText);
+
+      if (Array.isArray(optimizedIds) && optimizedIds.length > 0) {
+        const remainingSpots = activeDay.spots.filter(s => !s.name);
+        const sortedSpots = [...spotsWithNames].sort((a, b) => {
+          const aIndex = optimizedIds.indexOf(a.id);
+          const bIndex = optimizedIds.indexOf(b.id);
+          if (aIndex === -1 && bIndex === -1) return 0;
+          if (aIndex === -1) return 1;
+          if (bIndex === -1) return -1;
+          return aIndex - bIndex;
+        });
+
+        const newDays = [...tripData.days];
+        newDays[activeDayIndex] = { ...activeDay, spots: [...sortedSpots, ...remainingSpots] };
+        onUpdate({ days: newDays });
+        showAlert('優化完成', '已根據 AI 分析重新排列最順路的地點順序！', 'success');
+      }
+    } catch (error: any) {
+      console.error('Route optimization failed', error);
+
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+        // 嘗試從錯誤訊息中提取等待時間 (例如 "Please retry in 50.8s")
+        const retryMatch = errorMessage.match(/retry in ([\d.]+)s/);
+        const waitTime = retryMatch ? `，請在大約 ${Math.ceil(parseFloat(retryMatch[1]))} 秒後再試一次` : '，請稍候再試';
+
+        showAlert('AI 忙碌中 (配額限制)', `目前的 API 使用量已達上限${waitTime}。這是因為免費版 API 有頻率限制。`, 'warning');
+      } else {
+        showAlert('優化失敗', 'AI 路線優化暫時無法使用，請檢查網路連線或稍後再試。', 'alert');
+      }
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
 
   // Sync Logic
   const syncSpotToParent = (updatedSpot: Spot) => {
@@ -265,6 +352,9 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
 
   const activeSpotData = activeDragSpotId ? activeDay.spots.find(s => s.id === activeDragSpotId) : null;
 
+  // 智慧建議判斷
+  const showOptimizeHint = activeDay.spots.filter(s => s.name).length >= 3 && !dismissedHintDay.includes(activeDayIndex);
+
   return (
     <div className="animate-in fade-in duration-500">
       <DndContext
@@ -285,14 +375,61 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
           ))}
         </div>
 
+        {/* AI 智慧建議橫幅 */}
+        {showOptimizeHint && (
+          <div className="mb-6 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-5 sm:p-6 shadow-2xl relative overflow-hidden group animate-in slide-in-from-top-4 duration-500">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-1000">
+              <Sparkles className="w-32 h-32 text-white" />
+            </div>
+            <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center space-x-4">
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+                  <Navigation className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-white font-black text-lg">AI 路線優化建議</h4>
+                  <p className="text-blue-100 text-xs font-bold">這天的行程順序似乎可以再更順路一些，要試試一鍵排序嗎？</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 w-full sm:w-auto">
+                <button
+                  onClick={() => setDismissedHintDay(prev => [...prev, activeDayIndex])}
+                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-white/60 hover:text-white text-xs font-black transition-colors"
+                >
+                  暫時不用
+                </button>
+                <button
+                  onClick={handleOptimizeRoute}
+                  disabled={isOptimizing}
+                  className="flex-1 sm:flex-none bg-white text-blue-600 px-6 py-2.5 rounded-xl text-xs font-black shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
+                >
+                  {isOptimizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  一鍵優化
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-[2rem] shadow-xl p-6 sm:p-10 min-h-[500px] border border-slate-50">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-slate-50 pb-6">
-            <div>
-              <h3 className="text-2xl font-black text-slate-800">第 {activeDayIndex + 1} 天紀錄</h3>
-              <div className="flex items-center mt-1 space-x-3">
-                <span className="text-slate-400 text-sm font-medium">當日總支出：</span>
-                <span className="text-emerald-600 text-sm font-black">{tripData.currency} {dailyTotal.toLocaleString()}</span>
+            <div className="flex items-center space-x-4">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800">第 {activeDayIndex + 1} 天紀錄</h3>
+                <div className="flex items-center mt-1 space-x-3">
+                  <span className="text-slate-400 text-sm font-medium">當日總支出：</span>
+                  <span className="text-emerald-600 text-sm font-black">{tripData.currency} {dailyTotal.toLocaleString()}</span>
+                </div>
               </div>
+              {/* 小型優化按鈕 */}
+              <button
+                onClick={handleOptimizeRoute}
+                disabled={isOptimizing}
+                title="AI 路線優化"
+                className="flex p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-50 border border-blue-100"
+              >
+                {isOptimizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Navigation className="w-5 h-5" />}
+              </button>
             </div>
             <button
               onClick={() => handleAddSpot(activeCategory)}
