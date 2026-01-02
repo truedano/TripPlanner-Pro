@@ -4,6 +4,10 @@ export interface SpotImage {
   caption: string;
 }
 
+export interface IdentifiableSpotImage extends SpotImage {
+  internalId: string;
+}
+
 export enum ExpenseCategory {
   FOOD = '餐飲',
   TRANSPORT = '交通',

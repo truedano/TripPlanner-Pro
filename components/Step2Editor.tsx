@@ -1,9 +1,12 @@
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { TripData, Spot, SpotImage, SpotType, ExpenseCategory, ExpenseItem } from '../types';
-import { Plus, MapPin, Edit3, X, Library, Wallet, GripVertical, Camera, Trash2, Clock, Car, Bed, AlertCircle, Utensils, Zap } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
+import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
+import { DroppableDayTab } from './DroppableDayTab';
+import { SortableSpotItem } from './SortableSpotItem';
+import { SpotEditModal } from './SpotEditModal';
 import {
   DndContext,
   closestCenter,
@@ -13,7 +16,6 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  useDroppable,
   DragEndEvent,
   DragStartEvent
 } from '@dnd-kit/core';
@@ -21,225 +23,13 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
+  verticalListSortingStrategy
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 interface Props {
   tripData: TripData;
   onUpdate: (updates: Partial<TripData>) => void;
 }
-
-interface IdentifiableSpotImage extends SpotImage {
-  internalId: string;
-}
-
-interface DroppableDayTabProps {
-  dayIndex: number;
-  date: string;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-// 可拖曳的日期分頁 (Droppable Tab)
-const DroppableDayTab: React.FC<DroppableDayTabProps> = ({
-  dayIndex,
-  date,
-  isActive,
-  onClick
-}) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `day-tab-${dayIndex}`,
-    data: { index: dayIndex }
-  });
-
-  return (
-    <button
-      type="button"
-      ref={setNodeRef}
-      onClick={onClick}
-      className={`relative px-6 py-4 min-w-[5rem] rounded-2xl font-black transition-all flex flex-col items-center flex-shrink-0 ${isActive
-        ? 'bg-blue-600 text-white shadow-xl -translate-y-1'
-        : isOver
-          ? 'bg-blue-100 text-blue-600 border-2 border-blue-300 scale-105'
-          : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200'
-        }`}
-    >
-      <span className="text-[10px] opacity-70 uppercase leading-none mb-1">Day {dayIndex + 1}</span>
-      <span className="text-sm leading-none">{new Date(date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}</span>
-    </button>
-  );
-};
-
-interface SortableSpotItemProps {
-  spot: Spot;
-  currency?: string;
-  onClick: () => void;
-  onDelete: () => void;
-}
-
-// 可排序的景點卡片 (Sortable Spot Item)
-const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
-  spot,
-  currency,
-  onClick,
-  onDelete
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: spot.id });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : 'auto',
-    opacity: isDragging ? 0.3 : 1,
-    touchAction: 'none'
-  };
-
-  const typeStyles = {
-    [SpotType.SPOT]: { icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', label: '景點' },
-    [SpotType.TRANSPORT]: { icon: Car, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', label: '交通' },
-    [SpotType.STAY]: { icon: Bed, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', label: '住宿' },
-    [SpotType.MEAL]: { icon: Utensils, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', label: '伙食' },
-  };
-
-  const currentType = spot.type || SpotType.SPOT;
-  const styleConfig = typeStyles[currentType];
-  const Icon = styleConfig.icon;
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`group border rounded-[2.5rem] p-4 sm:p-5 hover:shadow-xl transition-all hover:bg-white select-none ${styleConfig.bg} ${styleConfig.border} hover:border-blue-200`}
-    >
-      <div className="flex items-start">
-        {/* Drag Handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="self-center mr-2 sm:mr-3 p-3 -ml-2 text-slate-300 group-hover:text-blue-400 transition-colors cursor-grab active:cursor-grabbing touch-none"
-        >
-          <GripVertical className="w-5 h-5" />
-        </div>
-
-        <div onClick={onClick} className="flex flex-grow items-start min-w-0 cursor-pointer">
-          {/* Time indicator - localized responsive styling */}
-          <div className="flex flex-col items-center justify-center w-12 sm:w-24 pr-3 sm:pr-4 border-r border-slate-100 sm:border-slate-200 mr-3 sm:mr-6 shrink-0">
-            <span className={`text-[10px] sm:text-xs font-black ${styleConfig.color}`}>{spot.startTime || '--:--'}</span>
-            <div className={`h-3 sm:h-4 w-0.5 my-0.5 sm:my-1 opacity-20 ${styleConfig.color.replace('text-', 'bg-')}`}></div>
-            <span className="text-[10px] font-bold text-slate-400 scale-[0.85] sm:scale-100">{spot.endTime || '--:--'}</span>
-          </div>
-
-          <div className="flex-grow min-w-0">
-            <div className="flex justify-between items-start gap-2 mb-2">
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className={`text-[10px] font-black uppercase tracking-tighter mb-1 ${styleConfig.color}`}>{styleConfig.label}</span>
-                <h4 className="font-black text-base sm:text-lg text-slate-800 truncate">{spot.name || `未命名${styleConfig.label}`}</h4>
-              </div>
-
-              <div className="flex items-center shrink-0 space-x-1">
-                {spot.mapUrl && (
-                  <div className="p-2 text-blue-400 opacity-60" title="已設定地圖連結">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                )}
-                {spot.expenses && spot.expenses.length > 0 && (
-                  <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-[10px] sm:text-xs font-black whitespace-nowrap">
-                    {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                  className="p-2 text-slate-300 hover:text-red-500 transition-colors rounded-full hover:bg-slate-100/50"
-                  title="刪除紀錄"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-slate-300 group-hover:text-blue-400 transition-colors flex items-center mb-1">
-              <Icon className="w-3 h-3 mr-1" /> 編輯詳細
-            </div>
-
-            {spot.images && spot.images.length > 0 && (
-              <div className="flex items-center space-x-2 mt-3 overflow-x-auto no-scrollbar pb-1">
-                {spot.images.map((img, idx) => (
-                  <img key={idx} src={img.url} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shadow-sm shrink-0" alt="thumbnail" />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface SortableImageItemProps {
-  image: IdentifiableSpotImage;
-  onRemove: () => void;
-  onChangeCaption: (newCaption: string) => void;
-}
-
-const SortableImageItem: React.FC<SortableImageItemProps> = ({ image, onRemove, onChangeCaption }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: image.internalId });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 20 : 'auto',
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex space-x-3 bg-white p-3 rounded-xl border border-slate-100 items-center ${isDragging ? 'shadow-lg' : ''}`}
-    >
-      <div {...attributes} {...listeners} className="text-slate-300 cursor-grab active:cursor-grabbing hover:text-blue-400 p-1">
-        <GripVertical className="w-5 h-5" />
-      </div>
-      <img src={image.url} className="w-12 h-12 rounded-lg object-cover" />
-      <input
-        type="text"
-        placeholder="描述..."
-        value={image.caption}
-        onChange={e => onChangeCaption(e.target.value)}
-        className="flex-grow text-xs font-medium outline-none"
-        onPointerDown={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-      />
-      <button
-        type="button"
-        onClick={onRemove}
-        className="p-1 text-slate-300 hover:text-red-500 transition-colors"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
 
 export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -250,11 +40,6 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
-
-  const albumInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const startTimeInputRef = useRef<HTMLInputElement>(null);
-  const endTimeInputRef = useRef<HTMLInputElement>(null);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -290,8 +75,6 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const groupStay = activeDaySpots.filter(s => s.type === SpotType.STAY);
   const groupMeals = activeDaySpots.filter(s => s.type === SpotType.MEAL);
 
-  const spotIds = useMemo(() => activeDaySpots.map(s => s.id), [activeDaySpots]);
-
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
 
   const getCurrentTime = () => {
@@ -302,7 +85,6 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
   const dailyTotal = activeDay.spots.reduce((sum, spot) =>
     sum + (spot.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0
   );
-
 
   // Sync Logic
   const syncSpotToParent = (updatedSpot: Spot) => {
@@ -524,7 +306,6 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
             </button>
           </div>
 
-          {/* 分類 Tab - 優化手機端顯示 */}
           <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 w-full gap-1">
             <button
               onClick={() => setActiveCategory(SpotType.SPOT)}
@@ -565,108 +346,54 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
           </div>
 
           <div className="min-h-[300px] animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* 景點區塊 */}
-            {activeCategory === SpotType.SPOT && (
-              <section>
-                <SortableContext items={groupSpots.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-4">
-                    {groupSpots.map(spot => (
-                      <SortableSpotItem
-                        key={spot.id}
-                        spot={spot}
-                        currency={tripData.currency}
-                        onClick={() => handleEditSpot(spot)}
-                        onDelete={() => handleDeleteSpot(spot.id)}
-                      />
-                    ))}
-                    {groupSpots.length === 0 && (
+            <section>
+              <SortableContext
+                items={
+                  activeCategory === SpotType.SPOT ? groupSpots.map(s => s.id) :
+                    activeCategory === SpotType.TRANSPORT ? groupTransport.map(s => s.id) :
+                      activeCategory === SpotType.STAY ? groupStay.map(s => s.id) :
+                        groupMeals.map(s => s.id)
+                }
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-4">
+                  {(
+                    activeCategory === SpotType.SPOT ? groupSpots :
+                      activeCategory === SpotType.TRANSPORT ? groupTransport :
+                        activeCategory === SpotType.STAY ? groupStay :
+                          groupMeals
+                  ).map(spot => (
+                    <SortableSpotItem
+                      key={spot.id}
+                      spot={spot}
+                      currency={tripData.currency}
+                      onClick={() => handleEditSpot(spot)}
+                      onDelete={() => handleDeleteSpot(spot.id)}
+                    />
+                  ))}
+                  {(
+                    activeCategory === SpotType.SPOT ? groupSpots.length :
+                      activeCategory === SpotType.TRANSPORT ? groupTransport.length :
+                        activeCategory === SpotType.STAY ? groupStay.length :
+                          groupMeals.length
+                  ) === 0 && (
                       <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
-                        <MapPin className="w-12 h-12 text-slate-200 mb-4" />
-                        <p className="text-slate-300 font-bold">尚無景點行程，點擊上方按鈕新增</p>
+                        {activeCategory === SpotType.SPOT ? <MapPin className="w-12 h-12 text-slate-200 mb-4" /> :
+                          activeCategory === SpotType.TRANSPORT ? <Car className="w-12 h-12 text-slate-200 mb-4" /> :
+                            activeCategory === SpotType.STAY ? <Bed className="w-12 h-12 text-slate-200 mb-4" /> :
+                              <Utensils className="w-12 h-12 text-slate-200 mb-4" />}
+                        <p className="text-slate-300 font-bold">
+                          {activeCategory === SpotType.SPOT ? '尚無景點行程，點擊上方按鈕新增' :
+                            activeCategory === SpotType.TRANSPORT ? '尚無交通紀錄，紀錄您的移動開銷' :
+                              activeCategory === SpotType.STAY ? '尚無住宿紀錄，紀錄休息地點與費用' :
+                                '尚無伙食紀錄，紀錄美食地圖與花費'}
+                        </p>
                       </div>
                     )}
-                  </div>
-                </SortableContext>
-              </section>
-            )}
-
-            {/* 交通區塊 */}
-            {activeCategory === SpotType.TRANSPORT && (
-              <section>
-                <SortableContext items={groupTransport.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-4">
-                    {groupTransport.map(spot => (
-                      <SortableSpotItem
-                        key={spot.id}
-                        spot={spot}
-                        currency={tripData.currency}
-                        onClick={() => handleEditSpot(spot)}
-                        onDelete={() => handleDeleteSpot(spot.id)}
-                      />
-                    ))}
-                    {groupTransport.length === 0 && (
-                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
-                        <Car className="w-12 h-12 text-slate-200 mb-4" />
-                        <p className="text-slate-300 font-bold">尚無交通紀錄，紀錄您的移動開銷</p>
-                      </div>
-                    )}
-                  </div>
-                </SortableContext>
-              </section>
-            )}
-
-            {/* 住宿區塊 */}
-            {activeCategory === SpotType.STAY && (
-              <section>
-                <SortableContext items={groupStay.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-4">
-                    {groupStay.map(spot => (
-                      <SortableSpotItem
-                        key={spot.id}
-                        spot={spot}
-                        currency={tripData.currency}
-                        onClick={() => handleEditSpot(spot)}
-                        onDelete={() => handleDeleteSpot(spot.id)}
-                      />
-                    ))}
-                    {groupStay.length === 0 && (
-                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
-                        <Bed className="w-12 h-12 text-slate-200 mb-4" />
-                        <p className="text-slate-300 font-bold">尚無住宿紀錄，紀錄休息地點與費用</p>
-                      </div>
-                    )}
-                  </div>
-                </SortableContext>
-              </section>
-            )}
-
-            {/* 伙食區塊 */}
-            {activeCategory === SpotType.MEAL && (
-              <section>
-                <SortableContext items={groupMeals.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-4">
-                    {groupMeals.map(spot => (
-                      <SortableSpotItem
-                        key={spot.id}
-                        spot={spot}
-                        currency={tripData.currency}
-                        onClick={() => handleEditSpot(spot)}
-                        onDelete={() => handleDeleteSpot(spot.id)}
-                      />
-                    ))}
-                    {groupMeals.length === 0 && (
-                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
-                        <Utensils className="w-12 h-12 text-slate-200 mb-4" />
-                        <p className="text-slate-300 font-bold">尚無伙食紀錄，紀錄美食地圖與花費</p>
-                      </div>
-                    )}
-                  </div>
-                </SortableContext>
-              </section>
-            )}
+                </div>
+              </SortableContext>
+            </section>
           </div>
-
-
         </div>
 
         <DragOverlay>
@@ -689,324 +416,27 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
         </DragOverlay>
       </DndContext>
 
-      {showModal && editingSpot && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in"
-          onClick={() => setShowModal(false)}
-        >
-          <div
-            className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-2xl font-black text-slate-800">
-                {editingSpot.type === SpotType.TRANSPORT ? '交通紀錄' : editingSpot.type === SpotType.STAY ? '住宿紀錄' : editingSpot.type === SpotType.MEAL ? '伙食紀錄' : '景點規劃'}
-              </h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-full"><X className="w-6 h-6 text-slate-400" /></button>
-            </div>
-
-            <div className="p-8 space-y-8 overflow-y-auto flex-grow custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      {editingSpot.type === SpotType.TRANSPORT ? '交通工具 / 路線' : editingSpot.type === SpotType.STAY ? '住宿名稱 / 飯店' : editingSpot.type === SpotType.MEAL ? '餐廳 / 小吃名稱' : '景點名稱'}
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      placeholder={editingSpot.type === SpotType.TRANSPORT ? "例如：捷運、計程車、JR山手線..." : editingSpot.type === SpotType.STAY ? "例如：希爾頓飯店、APA Hotel..." : editingSpot.type === SpotType.MEAL ? "例如：一蘭拉麵、築地市場..." : "景點名稱"}
-                      value={editingSpot.name}
-                      onChange={e => handleSpotChange({ name: e.target.value })}
-                      className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                      地圖連結 (Google Maps URL)
-                    </label>
-                    <div className="relative group">
-                      <input
-                        type="url"
-                        placeholder="貼上 Google Maps 網址..."
-                        value={editingSpot.mapUrl || ''}
-                        onChange={e => handleSpotChange({ mapUrl: e.target.value })}
-                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700 pr-12"
-                      />
-                      {editingSpot.mapUrl && (
-                        <a
-                          href={editingSpot.mapUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-                          title="開啟地圖"
-                        >
-                          <MapPin className="w-5 h-5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="relative group">
-                      <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">開始時間 (24H)</label>
-                      <input
-                        type="text"
-                        placeholder="HH:mm"
-                        maxLength={5}
-                        value={editingSpot.startTime || ''}
-                        onChange={e => {
-                          let val = e.target.value.replace(/[^0-9]/g, '');
-                          if (val.length >= 3) {
-                            val = val.slice(0, 2) + ':' + val.slice(2, 4);
-                          }
-                          const parts = val.split(':');
-                          if (parts[0] && parseInt(parts[0]) > 23) return;
-                          if (parts[1] && parseInt(parts[1]) > 59) return;
-                          handleSpotChange({ startTime: val });
-                        }}
-                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-28 placeholder:text-slate-300 relative z-10"
-                      />
-                      <input
-                        type="time"
-                        ref={startTimeInputRef}
-                        className="absolute inset-0 opacity-0 pointer-events-none"
-                        onChange={e => handleSpotChange({ startTime: e.target.value })}
-                      />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 z-20">
-                        {editingSpot.startTime && (
-                          <button
-                            type="button"
-                            onClick={() => handleSpotChange({ startTime: '' })}
-                            className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
-                            title="清除時間"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleSpotChange({ startTime: getCurrentTime() })}
-                          className="p-1.5 text-slate-300 hover:text-amber-500 transition-colors"
-                          title="設為現在時間"
-                        >
-                          <Zap className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            try {
-                              startTimeInputRef.current?.showPicker();
-                            } catch (e) {
-                              startTimeInputRef.current?.focus();
-                            }
-                          }}
-                          className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors"
-                          title="開啟時間選取器"
-                        >
-                          <Clock className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">結束時間 (24H)</label>
-                      <input
-                        type="text"
-                        placeholder="HH:mm"
-                        maxLength={5}
-                        value={editingSpot.endTime || ''}
-                        onChange={e => {
-                          let val = e.target.value.replace(/[^0-9]/g, '');
-                          if (val.length >= 3) {
-                            val = val.slice(0, 2) + ':' + val.slice(2, 4);
-                          }
-                          const parts = val.split(':');
-                          if (parts[0] && parseInt(parts[0]) > 23) return;
-                          if (parts[1] && parseInt(parts[1]) > 59) return;
-                          handleSpotChange({ endTime: val });
-                        }}
-                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-28 placeholder:text-slate-300 relative z-10"
-                      />
-                      <input
-                        type="time"
-                        ref={endTimeInputRef}
-                        className="absolute inset-0 opacity-0 pointer-events-none"
-                        onChange={e => handleSpotChange({ endTime: e.target.value })}
-                      />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 z-20">
-                        {editingSpot.endTime && (
-                          <button
-                            type="button"
-                            onClick={() => handleSpotChange({ endTime: '' })}
-                            className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
-                            title="清除時間"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleSpotChange({ endTime: getCurrentTime() })}
-                          className="p-1.5 text-slate-300 hover:text-amber-500 transition-colors"
-                          title="設為現在時間"
-                        >
-                          <Zap className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            try {
-                              endTimeInputRef.current?.showPicker();
-                            } catch (e) {
-                              endTimeInputRef.current?.focus();
-                            }
-                          }}
-                          className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors"
-                          title="開啟時間選取器"
-                        >
-                          <Clock className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100">
-                    <div className="flex items-center justify-between text-slate-400 mb-2">
-                      <div className="flex items-center space-x-2">
-                        <Wallet className="w-4 h-4" />
-                        <span className="text-xs font-black uppercase tracking-widest">支出紀錄 ({tripData.currency})</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={addExpenseItem}
-                        className="text-blue-600 text-[10px] font-black hover:underline flex items-center bg-white px-2 py-1 rounded-lg border border-slate-100"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />新增明細
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      {editingSpot.expenses?.map((exp) => (
-                        <div key={exp.id} className="group flex items-center space-x-3 p-4 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition-all animate-in slide-in-from-left-2 duration-200 shadow-sm hover:shadow-md">
-                          <input
-                            type="text"
-                            placeholder="支出項目名稱..."
-                            value={exp.name}
-                            onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
-                            className="flex-grow bg-transparent text-sm font-black text-slate-700 outline-none placeholder:text-slate-300"
-                          />
-                          <div className="flex items-center space-x-2 border-l border-slate-100 pl-4">
-                            <input
-                              type="number"
-                              placeholder="0"
-                              value={exp.amount || ''}
-                              onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
-                              className="w-20 bg-transparent text-base font-black text-emerald-600 outline-none text-right"
-                            />
-                            <span className="text-[10px] font-black text-emerald-300">{tripData.currency}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeExpenseItem(exp.id)}
-                            className="p-1 px-2 text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {(!editingSpot.expenses || editingSpot.expenses.length === 0) && (
-                        <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-300 text-[10px] font-bold">
-                          尚無支出明細
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 p-6 rounded-[2rem] space-y-4 border border-slate-100 mt-6">
-                    <div className="flex items-center justify-between text-slate-400 mb-2">
-                      <div className="flex items-center space-x-2">
-                        <Edit3 className="w-4 h-4" />
-                        <span className="text-xs font-black uppercase tracking-widest">貼心筆記</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={addNoteItem}
-                        className="text-blue-600 text-[10px] font-black hover:underline flex items-center bg-white px-2 py-1 rounded-lg border border-slate-100"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />新增筆記
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      {editingSpot.notes?.map((note) => (
-                        <div key={note.id} className="flex items-start space-x-2 animate-in slide-in-from-left-2 duration-200">
-                          <textarea
-                            rows={2}
-                            placeholder="輸入筆記..."
-                            value={note.content}
-                            onChange={e => updateNoteItem(note.id, e.target.value)}
-                            className="flex-grow px-4 py-3 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-blue-400 resize-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeNoteItem(note.id)}
-                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors mt-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      {(!editingSpot.notes || editingSpot.notes.length === 0) && (
-                        <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-300 text-[10px] font-bold">
-                          尚無筆記內容
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex flex-col h-full min-h-[300px]">
-                    <div className="flex items-center justify-between mb-4">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">相簿</label>
-                      <div className="flex items-center space-x-3">
-                        <button type="button" onClick={() => cameraInputRef.current?.click()} className="text-blue-600 text-xs font-black hover:underline flex items-center">
-                          <Camera className="w-3 h-3 mr-1" />拍照
-                        </button>
-                        <button type="button" onClick={() => albumInputRef.current?.click()} className="text-blue-600 text-xs font-black hover:underline flex items-center">
-                          <Library className="w-3 h-3 mr-1" />上傳
-                        </button>
-                      </div>
-                      <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                      <input type="file" ref={albumInputRef} accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
-                    </div>
-                    <div className="space-y-2 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
-                      {isProcessingImage && <div className="flex items-center justify-center p-4 text-xs font-bold text-blue-500 animate-pulse italic">處理圖片中...</div>}
-                      <DndContext sensors={imageSensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
-                        <SortableContext items={editingImages.map(i => i.internalId)} strategy={verticalListSortingStrategy}>
-                          {editingImages.map((img, i) => (
-                            <SortableImageItem
-                              key={img.internalId}
-                              image={img}
-                              onRemove={() => {
-                                const newImg = [...editingImages];
-                                newImg.splice(i, 1);
-                                updateImages(newImg);
-                              }}
-                              onChangeCaption={(val) => {
-                                const newImg = [...editingImages];
-                                newImg[i].caption = val;
-                                updateImages(newImg);
-                              }}
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowModal(false)} className="w-full py-4 bg-blue-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 shadow-xl transition-all active:scale-95">完成</button>
-            </div>
-          </div>
-        </div>
+      {editingSpot && (
+        <SpotEditModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          spot={editingSpot}
+          editingImages={editingImages}
+          currency={tripData.currency || 'TWD'}
+          onSpotChange={handleSpotChange}
+          onImagesChange={updateImages}
+          onImageUpload={handleImageUpload}
+          isProcessingImage={isProcessingImage}
+          addExpenseItem={addExpenseItem}
+          removeExpenseItem={removeExpenseItem}
+          updateExpenseItem={updateExpenseItem}
+          addNoteItem={addNoteItem}
+          removeNoteItem={removeNoteItem}
+          updateNoteItem={updateNoteItem}
+          getCurrentTime={getCurrentTime}
+          imageSensors={imageSensors}
+          handleImageDragEnd={handleImageDragEnd}
+        />
       )}
 
       <ModernModal
