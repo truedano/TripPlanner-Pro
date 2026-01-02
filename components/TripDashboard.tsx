@@ -1,8 +1,8 @@
-
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { TripData } from '../types';
-import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart, Download, Upload } from 'lucide-react';
+import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart, Download, Upload, CloudUpload, Loader2 } from 'lucide-react';
 import { ModalType } from './ModernModal';
+import { saveTripToDrive } from '../utils/googleDrive';
 
 interface Props {
   trips: TripData[];
@@ -15,6 +15,7 @@ interface Props {
 
 export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCreate, onImport, showAlert }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const handleExport = () => {
     if (trips.length === 0) {
@@ -44,6 +45,31 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
     linkElement.click();
   };
 
+  const handleSaveToCloud = async (e: React.MouseEvent, trip: TripData) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      showAlert('尚未設定 Google Client ID', '請聯絡開發人員設定 .env 檔案中的 VITE_GOOGLE_CLIENT_ID 以啟用雲端功能。', 'alert');
+      return;
+    }
+
+    setUploadingId(trip.id);
+    try {
+      await saveTripToDrive(trip);
+      showAlert('備份成功', `「${trip.name}」已成功上傳至 Google Drive！`, 'success');
+    } catch (error: any) {
+      console.error('Upload failed', error);
+      if (error.error === 'popup_closed_by_user') {
+        // Ignore
+      } else {
+        showAlert('備份失敗', `上傳過程中發生錯誤：${error.message || '未知錯誤'}`, 'alert');
+      }
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -63,7 +89,7 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
           const newTrip = {
             ...imported,
             id: crypto.randomUUID(),
-            name: `${imported.name} (匯入copy)`,
+            name: `${imported.name} (匯入 copy)`,
             lastModified: Date.now()
           };
           onImport([newTrip as TripData]);
@@ -163,6 +189,18 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
                   </div>
 
                   <div className="absolute top-6 right-6 z-30 flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleSaveToCloud(e, trip)}
+                      className="p-2.5 text-white/50 hover:text-white hover:bg-emerald-500 rounded-full transition-all bg-black/20 backdrop-blur-md border border-white/20 active:scale-90"
+                      title="上傳至 Google Drive"
+                    >
+                      {uploadingId === trip.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CloudUpload className="w-4 h-4" />
+                      )}
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => handleExportSingleTrip(e, trip)}

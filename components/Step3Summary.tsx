@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { TripData, SpotType } from '../types';
-import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, ListOrdered, MapPin, Car, Bed, Utensils } from 'lucide-react';
+import { Printer, Calendar, Clock, AlertCircle, Wallet, BarChart3, TrendingUp, ListOrdered, MapPin, Car, Bed, Utensils, CloudUpload, Loader2 } from 'lucide-react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { TripPdfDocument } from './TripPdfDocument';
+import { ModalType } from './ModernModal';
+import { saveTripToDrive } from '../utils/googleDrive';
 
 interface Props {
   tripData: TripData;
+  showAlert: (title: string, message: string, type?: ModalType) => void;
 }
 
-export const Step3Summary: React.FC<Props> = ({ tripData }) => {
+export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
   const [viewMode, setViewMode] = useState<'itinerary' | 'journal' | 'budget'>('journal');
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!tripData.days || tripData.days.length === 0) return null;
 
@@ -37,6 +41,28 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
     )
   ).filter(e => e.amount > 0 || e.name);
 
+  const handleSaveToCloud = async () => {
+    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      showAlert('尚未設定 Google Client ID', '請聯絡開發人員設定 .env 檔案中的 VITE_GOOGLE_CLIENT_ID 以啟用雲端功能。', 'alert');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await saveTripToDrive(tripData);
+      showAlert('備份成功', `「${tripData.name}」已成功上傳至 Google Drive！`, 'success');
+    } catch (error: any) {
+      console.error('Upload failed', error);
+      if (error.error === 'popup_closed_by_user') {
+        // ignore
+      } else {
+        showAlert('備份失敗', `上傳過程中發生錯誤：${error.message || '未知錯誤'}`, 'alert');
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-5xl mx-auto pb-20 px-4">
       <div className="text-center mb-16 no-print space-y-6">
@@ -59,6 +85,21 @@ export const Step3Summary: React.FC<Props> = ({ tripData }) => {
               </button>
               <button onClick={() => setViewMode('budget')} className={`flex items-center px-6 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'budget' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
                 財務報告
+              </button>
+            </div>
+
+            <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100 items-center">
+              <button
+                onClick={handleSaveToCloud}
+                disabled={isUploading}
+                className="flex items-center px-6 py-2 rounded-xl text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all disabled:opacity-50"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-4 h-4 mr-2" />
+                )}
+                <span>備份雲端</span>
               </button>
             </div>
 

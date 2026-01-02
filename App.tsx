@@ -319,7 +319,7 @@ const App: React.FC = () => {
           />
         )}
         {step === Step.PLANNING && activeTrip && <Step2Editor tripData={activeTrip} onUpdate={handleUpdateActiveTrip} />}
-        {step === Step.SUMMARY && activeTrip && <Step3Summary tripData={activeTrip} />}
+        {step === Step.SUMMARY && activeTrip && <Step3Summary tripData={activeTrip} showAlert={showAlert} />}
       </main>
 
       <footer className="bg-white py-12 text-center no-print">
