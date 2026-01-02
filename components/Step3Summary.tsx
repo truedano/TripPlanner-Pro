@@ -262,6 +262,18 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
                                 <Clock className="w-3 h-3 mr-1" />
                                 <span>{spot.startTime} — {spot.endTime}</span>
                               </div>
+                              {spot.mapUrl && (
+                                <a
+                                  href={spot.mapUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center text-blue-500 hover:text-blue-600 font-black text-[10px] uppercase tracking-widest"
+                                  title="在 Google Maps 中開啟"
+                                >
+                                  <MapPin className="w-3 h-3 mr-1" />
+                                  <span>地圖</span>
+                                </a>
+                              )}
                             </div>
                             {spot.expenses && spot.expenses.length > 0 && (
                               <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">

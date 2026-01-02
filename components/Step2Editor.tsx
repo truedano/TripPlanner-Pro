@@ -146,6 +146,11 @@ const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
               </div>
 
               <div className="flex items-center shrink-0 space-x-1">
+                {spot.mapUrl && (
+                  <div className="p-2 text-blue-400 opacity-60" title="已設定地圖連結">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                )}
                 {spot.expenses && spot.expenses.length > 0 && (
                   <div className="bg-emerald-50 px-3 py-1 rounded-full text-emerald-600 text-[10px] sm:text-xs font-black whitespace-nowrap">
                     {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
@@ -715,6 +720,31 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate }) => {
                       onChange={e => handleSpotChange({ name: e.target.value })}
                       className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                      地圖連結 (Google Maps URL)
+                    </label>
+                    <div className="relative group">
+                      <input
+                        type="url"
+                        placeholder="貼上 Google Maps 網址..."
+                        value={editingSpot.mapUrl || ''}
+                        onChange={e => handleSpotChange({ mapUrl: e.target.value })}
+                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700 pr-12"
+                      />
+                      {editingSpot.mapUrl && (
+                        <a
+                          href={editingSpot.mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                          title="開啟地圖"
+                        >
+                          <MapPin className="w-5 h-5" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="relative group">
