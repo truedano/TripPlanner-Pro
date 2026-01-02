@@ -5,7 +5,7 @@ import { Step1Setup } from './components/Step1Setup';
 import { Step2Editor } from './components/Step2Editor';
 import { Step3Summary } from './components/Step3Summary';
 import { TripData, Step } from './types';
-import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2, Settings, Cloud, CloudOff, CloudCheck } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, ChevronLeft, ChevronRight, Save, Plus, Trash2, Heart, Loader2, Settings, Cloud, CloudOff, CloudCheck, X } from 'lucide-react';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ModernModal, ModalType } from './components/ModernModal';
 import { db } from './db';
@@ -311,113 +311,109 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans selection:bg-rose-100 selection:text-rose-900">
-      <header className="fixed top-0 left-0 right-0 h-24 bg-white/80 backdrop-blur-xl z-[100] border-b border-slate-50 px-6 md:px-12 flex items-center justify-between">
-        <div className="flex items-center space-x-12">
-          <button
-            onClick={() => {
-              setActiveTripId(null);
-              setStep(Step.DASHBOARD);
-            }}
-            className="flex flex-col items-start group"
-          >
-            <h1 className="text-2xl font-serif font-black italic tracking-tighter group-hover:text-blue-600 transition-colors">TripPlanner<span className="text-blue-600">.</span>Pro</h1>
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-300 group-hover:text-blue-200 transition-colors">By truedano</span>
-          </button>
+    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans selection:bg-rose-100 selection:text-rose-900 overflow-x-hidden">
+      {/* 🚀 FIXED HEADER: Premium & Minimal */}
+      <header className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-xl z-[100] border-b border-slate-50 px-4 md:px-12 flex items-center justify-between">
+        <button
+          onClick={() => {
+            setActiveTripId(null);
+            setStep(Step.DASHBOARD);
+          }}
+          className="flex flex-col items-start group flex-shrink-0"
+        >
+          <h1 className="text-xl md:text-2xl font-serif font-black italic tracking-tighter group-hover:text-blue-600 transition-colors">
+            TripPlanner<span className="text-blue-600">.</span>Pro
+          </h1>
+          <span className="hidden sm:inline text-[9px] font-black uppercase tracking-[0.4em] text-slate-300">By truedano</span>
+        </button>
+
+        {/* Desktop Navigation (Center) */}
+        {step !== Step.DASHBOARD && (
+          <div className="hidden md:flex items-center space-x-12">
+            {navSteps.map(s => {
+              const isActive = step === s.id;
+              const isPast = step > s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    if (isActive) return;
+                    if (s.id < step) setStep(s.id);
+                    if (s.id > step) nextStep();
+                  }}
+                  className="flex flex-col items-center group"
+                >
+                  <div className={`h-1 rounded-full transition-all duration-500 mb-1.5 ${isActive ? 'w-10 bg-blue-600' : isPast ? 'w-10 bg-slate-400' : 'w-4 bg-slate-100'}`} />
+                  <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${isActive ? 'text-blue-600' : isPast ? 'text-slate-400' : 'text-slate-200'}`}>
+                    {s.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Right Action Icons (Pure Icons for Mobile) */}
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          {step !== Step.DASHBOARD && activeTrip && cloudStatus === 'connected' && (
+            <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+              {syncStatus === 'syncing' ? <Loader2 className="w-4 h-4 text-blue-500 animate-spin" /> :
+                syncStatus === 'synced' ? <CloudCheck className="w-4 h-4 text-emerald-500" /> :
+                  syncStatus === 'error' ? <CloudOff className="w-4 h-4 text-rose-500" /> :
+                    <Cloud className="w-4 h-4 text-slate-300" />}
+            </div>
+          )}
 
           {step !== Step.DASHBOARD && (
-            <div className="hidden md:flex items-center space-x-8">
-              {navSteps.map(s => {
-                const isActive = step === s.id;
-                const isPast = step > s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      if (s.id < step) setStep(s.id);
-                      if (s.id > step) nextStep();
-                    }}
-                    className="flex flex-col items-center group touch-none"
-                  >
-                    <div className={`h-1.5 rounded-full transition-all duration-500 mb-1.5 ${isActive ? 'w-8 bg-blue-600' : isPast ? 'w-8 bg-slate-400' : 'w-4 bg-slate-100'}`} />
-                    <span className={`text-[10px] font-black uppercase tracking-tighter transition-colors ${isActive ? 'text-blue-600' : isPast ? 'text-slate-400' : 'text-slate-200'}`}>
-                      {s.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-3">
-          {step !== Step.DASHBOARD && activeTrip && cloudStatus === 'connected' && (
-            <div className="flex items-center mr-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100 transition-all">
-              {syncStatus === 'syncing' && (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin mr-2" />
-                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">同步中</span>
-                </>
-              )}
-              {syncStatus === 'synced' && (
-                <>
-                  <CloudCheck className="w-3.5 h-3.5 text-emerald-500 mr-2" />
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">已雲端備份</span>
-                </>
-              )}
-              {syncStatus === 'idle' && (
-                <>
-                  <Cloud className="w-3.5 h-3.5 text-slate-300 mr-2" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">雲端已連線</span>
-                </>
-              )}
-              {syncStatus === 'error' && (
-                <>
-                  <CloudOff className="w-3.5 h-3.5 text-rose-500 mr-2" />
-                  <span className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">同步失敗</span>
-                </>
-              )}
-            </div>
-          )}
-
-          {step === Step.DASHBOARD ? (
             <button
-              onClick={handleCreateNewTrip}
-              className="flex items-center px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-sm font-black shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-95"
+              onClick={() => {
+                setActiveTripId(null);
+                setStep(Step.DASHBOARD);
+              }}
+              className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
             >
-              <Plus className="w-4 h-4 mr-1" /> 紀錄旅程
+              <X className="w-5 h-5" />
             </button>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => activeTripId && handleDeleteTrip(activeTripId)}
-                className="p-2.5 text-slate-300 hover:text-red-500 transition-colors rounded-2xl hover:bg-red-50"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTripId(null);
-                  setStep(Step.DASHBOARD);
-                  setSyncStatus('idle');
-                }}
-                className="px-5 py-2.5 text-xs font-black text-slate-600 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest"
-              >
-                關閉
-              </button>
-            </div>
           )}
 
           <button
             onClick={() => setShowApiKeyModal(true)}
-            className="p-2.5 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100 ml-2"
+            className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl border border-slate-100"
           >
             <Settings className="w-5 h-5" />
           </button>
         </div>
       </header>
 
-      <main className="pt-32 px-6 md:px-12 max-w-[1400px] mx-auto pb-24">
+      {/* 📱 MOBILE BOTTOM NAV: Ultra-responsive floating bar */}
+      {step !== Step.DASHBOARD && (
+        <div className="md:hidden fixed bottom-6 left-0 right-0 z-[200] flex justify-center px-4 pointer-events-none">
+          <div className="bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] p-2 flex items-center justify-around w-full max-w-sm pointer-events-auto">
+            {navSteps.map(s => {
+              const isActive = step === s.id;
+              const isPast = step > s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    if (isActive) return;
+                    if (s.id < step) setStep(s.id);
+                    if (s.id > step) nextStep();
+                  }}
+                  className="flex-1 flex flex-col items-center py-2 transition-all active:scale-90"
+                >
+                  <div className={`h-1 rounded-full transition-all duration-500 mb-1.5 ${isActive ? 'w-8 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : isPast ? 'w-8 bg-slate-600' : 'w-4 bg-slate-800'}`} />
+                  <span className={`text-[10px] font-black uppercase tracking-tighter transition-colors ${isActive ? 'text-white' : isPast ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {s.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <main className="pt-24 md:pt-32 px-4 md:px-12 max-w-[1400px] mx-auto pb-32">
         {step === Step.DASHBOARD && (
           <TripDashboard
             trips={trips}
