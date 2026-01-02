@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [step, setStep] = useState<Step>(Step.DASHBOARD);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const lastActiveTripId = useRef<string | null>(null);
 
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -134,13 +135,13 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [cloudStatus, trips, step]);
 
-  // Modal State
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     title: string;
     message: string;
     type: ModalType;
     onConfirm?: () => void;
+    onCancel?: () => void;
   }>({
     isOpen: false,
     title: '',
@@ -148,8 +149,8 @@ const App: React.FC = () => {
     type: 'confirm'
   });
 
-  const showAlert = (title: string, message: string, type: ModalType = 'confirm', onConfirm?: () => void) => {
-    setModalConfig({ isOpen: true, title, message, type, onConfirm });
+  const showAlert = (title: string, message: string, type: ModalType = 'confirm', onConfirm?: () => void, onCancel?: () => void) => {
+    setModalConfig({ isOpen: true, title, message, type, onConfirm, onCancel });
   };
 
   useEffect(() => {
@@ -178,14 +179,20 @@ const App: React.FC = () => {
   useEffect(() => {
     if (activeTripId) {
       localStorage.setItem(ACTIVE_TRIP_ID_KEY, activeTripId);
-      const trip = trips.find(t => t.id === activeTripId);
-      if (trip) {
-        if (trip.days.length > 0) setStep(Step.PLANNING);
-        else setStep(Step.SETUP);
+
+      // 只有當切換行程時，才根據進度決定預設步驟
+      if (activeTripId !== lastActiveTripId.current) {
+        const trip = trips.find(t => t.id === activeTripId);
+        if (trip) {
+          if (trip.days.length > 0) setStep(Step.PLANNING);
+          else setStep(Step.SETUP);
+        }
+        lastActiveTripId.current = activeTripId;
       }
     } else {
       localStorage.removeItem(ACTIVE_TRIP_ID_KEY);
       setStep(Step.DASHBOARD);
+      lastActiveTripId.current = null;
     }
   }, [activeTripId, trips]);
 
@@ -286,12 +293,30 @@ const App: React.FC = () => {
         showAlert('遺漏資訊', '請先填寫行程名稱與旅遊日期區間。');
         return;
       }
-      if (activeTrip.days.length === 0) {
-        showAlert('行程未建立', '請先使用 AI 智慧規劃或手動建立行程框架。');
-        return;
-      }
     }
     setStep(prev => (prev < 3 ? prev + 1 : prev));
+  };
+
+  const handleNavStepClick = (targetId: Step) => {
+    if (targetId === step) return;
+
+    // 前往更後面的步驟時進行驗證
+    if (targetId > step) {
+      if (step === Step.SETUP && activeTrip) {
+        if (!activeTrip.name || !activeTrip.startDate || !activeTrip.endDate) {
+          showAlert('遺漏資訊', '請先填寫行程名稱與旅遊日期區間。');
+          return;
+        }
+        if (activeTrip.days.length === 0) {
+          showAlert('行程未建立', '請先使用 AI 智慧規劃或手動建立行程框架。');
+          return;
+        }
+      }
+      setStep(targetId);
+    } else {
+      // 回到之前的步驟直接跳轉
+      setStep(targetId);
+    }
   };
 
   const prevStep = () => setStep(prev => (prev > 1 ? prev - 1 : prev));
@@ -338,11 +363,7 @@ const App: React.FC = () => {
               return (
                 <button
                   key={s.id}
-                  onClick={() => {
-                    if (isActive) return;
-                    if (s.id < step) setStep(s.id);
-                    if (s.id > step) nextStep();
-                  }}
+                  onClick={() => handleNavStepClick(s.id)}
                   className="flex flex-col items-center group"
                 >
                   <div className={`h-1 rounded-full transition-all duration-500 mb-1.5 ${isActive ? 'w-10 bg-blue-600' : isPast ? 'w-10 bg-slate-400' : 'w-4 bg-slate-100'}`} />
@@ -397,11 +418,7 @@ const App: React.FC = () => {
               return (
                 <button
                   key={s.id}
-                  onClick={() => {
-                    if (isActive) return;
-                    if (s.id < step) setStep(s.id);
-                    if (s.id > step) nextStep();
-                  }}
+                  onClick={() => handleNavStepClick(s.id)}
                   className="flex-1 flex flex-col items-center py-2 transition-all active:scale-90"
                 >
                   <div className={`h-1 rounded-full transition-all duration-500 mb-1.5 ${isActive ? 'w-8 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : isPast ? 'w-8 bg-slate-600' : 'w-4 bg-slate-800'}`} />
@@ -465,9 +482,22 @@ const App: React.FC = () => {
         title={modalConfig.title}
         message={modalConfig.message}
         type={modalConfig.type}
-        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => {
+          modalConfig.onCancel?.();
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }}
         onConfirm={() => {
-          modalConfig.onConfirm?.();
+          const callback = modalConfig.onConfirm;
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+          if (callback) {
+            // 使用 setTimeout 確保 Modal 已徹底關閉，避免狀態競爭導致 AI 流程中斷
+            setTimeout(() => {
+              callback();
+            }, 100);
+          }
+        }}
+        onCancel={() => {
+          modalConfig.onCancel?.();
           setModalConfig(prev => ({ ...prev, isOpen: false }));
         }}
       />

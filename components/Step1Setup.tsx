@@ -10,7 +10,7 @@ interface Props {
   tripData: TripData;
   onUpdate: (updates: Partial<TripData>) => void;
   onNext: () => void;
-  showAlert: (title: string, message: string, type?: ModalType, onConfirm?: () => void) => void;
+  showAlert: (title: string, message: string, type?: ModalType, onConfirm?: () => void, onCancel?: () => void) => void;
 }
 
 export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAlert }) => {
@@ -23,7 +23,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
 
   const isValid = localName.trim() !== '' && tripData.startDate !== '' && tripData.endDate !== '';
 
-  const handleManualSetup = () => {
+  const handleManualSetup = async () => {
     if (!isValid) return;
     const start = new Date(tripData.startDate);
     const end = new Date(tripData.endDate);
@@ -45,7 +45,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
       current.setDate(current.getDate() + 1);
     }
 
-    onUpdate({ name: localName, days: newDays });
+    await onUpdate({ name: localName, days: newDays });
     onNext();
   };
 
@@ -85,13 +85,14 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
 3. 規劃要求：
    - 每天必須包含 2 到 3 個「景點 (spot)」以及 2 到 3 個「伙食 (meal)」項目（餐廳、小吃）。
    - 行程安排應儘量順路且合理。
+   - **地圖連結要求**：請為每個景點與餐廳產生地圖搜尋連結，格式必須為：https://www.google.com/maps/search/?api=1&query=景點名稱。其中「景點名稱」應包含地區名稱以增加精準度（例如：東京晴空塔 或 築地市場一蘭拉麵）。
 
 4. 輸出限制：
    - 必須嚴格遵守提供的 JSON Schema。
    - 必須使用 **正體中文 (Traditional Chinese)** 撰寫所有內容。
 </instructions>
 
-<trip_name>${safeName}</trip_name>`;
+  <trip_name>${safeName}</trip_name>`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -114,6 +115,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
                       startTime: { type: Type.STRING },
                       endTime: { type: Type.STRING },
                       notes: { type: Type.STRING },
+                      mapUrl: { type: Type.STRING, description: 'Google Maps 搜尋連結' },
                       expense: {
                         type: Type.OBJECT,
                         properties: {
@@ -122,7 +124,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
                         }
                       }
                     },
-                    required: ['name', 'type', 'startTime', 'endTime', 'expense']
+                    required: ['name', 'type', 'startTime', 'endTime', 'expense', 'mapUrl']
                   }
                 }
               },
@@ -158,7 +160,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
         }))
       }));
 
-      onUpdate({ name: localName, days: processedDays });
+      await onUpdate({ name: localName, days: processedDays });
       onNext();
     } catch (error) {
       console.error('AI generation failed:', error);
@@ -264,7 +266,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
             <button
               onClick={() => {
                 if (tripData.days && tripData.days.length > 0) {
-                  showAlert('重新產生行程？', '這將會覆蓋您目前的行程紀錄且無法還原，確定要重新產生嗎？', 'confirm', generateAIPlan);
+                  showAlert('重新產生行程？', '這將會覆蓋您目前的行程紀錄且無法還原，確定要重新產生嗎？', 'confirm', generateAIPlan, onNext);
                 } else {
                   generateAIPlan();
                 }
