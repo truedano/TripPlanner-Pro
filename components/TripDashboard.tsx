@@ -31,6 +31,19 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
     linkElement.click();
   };
 
+  const handleExportSingleTrip = (e: React.MouseEvent, trip: TripData) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const dataStr = JSON.stringify(trip, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const exportFileName = `trip-${trip.name || 'untitled'}-${trip.startDate || 'date'}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileName);
+    linkElement.click();
+  };
+
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -45,6 +58,15 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
         const imported = JSON.parse(event.target?.result as string);
         if (Array.isArray(imported)) {
           onImport(imported);
+        } else if (imported && typeof imported === 'object' && imported.id) {
+          // Single trip import - Treat as NEW trip to avoid collision
+          const newTrip = {
+            ...imported,
+            id: crypto.randomUUID(),
+            name: `${imported.name} (匯入copy)`,
+            lastModified: Date.now()
+          };
+          onImport([newTrip as TripData]);
         } else {
           showAlert('格式錯誤', '匯入的檔案格式不正確，請確認是正確的備份檔案。', 'confirm');
         }
@@ -140,18 +162,28 @@ export const TripDashboard: React.FC<Props> = ({ trips, onSelect, onDelete, onCr
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      onDelete(trip.id);
-                    }}
-                    className="absolute top-6 right-6 z-30 p-2.5 text-white/50 hover:text-white hover:bg-red-500 rounded-full transition-all bg-black/20 backdrop-blur-md border border-white/20 active:scale-90"
-                    title="刪除行程"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="absolute top-6 right-6 z-30 flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleExportSingleTrip(e, trip)}
+                      className="p-2.5 text-white/50 hover:text-white hover:bg-blue-500 rounded-full transition-all bg-black/20 backdrop-blur-md border border-white/20 active:scale-90"
+                      title="匯出此行程"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onDelete(trip.id);
+                      }}
+                      className="p-2.5 text-white/50 hover:text-white hover:bg-red-500 rounded-full transition-all bg-black/20 backdrop-blur-md border border-white/20 active:scale-90"
+                      title="刪除行程"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-8">
