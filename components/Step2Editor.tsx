@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
-import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle, Map as MapIcon, List } from 'lucide-react';
+import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle, Map as MapIcon, List, Route } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import { DroppableDayTab } from './DroppableDayTab';
@@ -391,24 +391,24 @@ ${JSON.stringify(inputData)}
 
         {/* AI 智慧建議橫幅 */}
         {showOptimizeHint && (
-          <div className="mb-6 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-5 sm:p-6 shadow-2xl relative overflow-hidden group animate-in slide-in-from-top-4 duration-500">
+          <div className="mb-6 bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-500 rounded-[2rem] p-5 sm:p-6 shadow-2xl relative overflow-hidden group animate-in slide-in-from-top-4 duration-500">
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-1000">
               <Sparkles className="w-32 h-32 text-white" />
             </div>
             <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
-                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                  <Navigation className="w-6 h-6 text-white" />
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md ring-4 ring-white/10">
+                  <Sparkles className="w-6 h-6 text-white animate-pulse" />
                 </div>
                 <div>
-                  <h4 className="text-white font-black text-lg">AI 路線優化建議</h4>
-                  <p className="text-blue-100 text-xs font-bold">這天的行程順序似乎可以再更順路一些，要試試一鍵排序嗎？</p>
+                  <h4 className="text-white font-black text-lg">探索更順暢的路線！</h4>
+                  <p className="text-blue-50 text-xs font-bold opacity-90">AI 發現這天的景點順序可以再更優化，要讓行程更順路嗎？</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3 w-full sm:w-auto">
                 <button
                   onClick={() => setDismissedHintDay(prev => [...prev, activeDayIndex])}
-                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-white/60 hover:text-white text-xs font-black transition-colors"
+                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-white/70 hover:text-white text-xs font-black transition-colors"
                 >
                   暫時不用
                 </button>
@@ -418,7 +418,7 @@ ${JSON.stringify(inputData)}
                   className="flex-1 sm:flex-none bg-white text-blue-600 px-6 py-2.5 rounded-xl text-xs font-black shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
                 >
                   {isOptimizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  一鍵優化
+                  立即優化
                 </button>
               </div>
             </div>
@@ -435,27 +435,29 @@ ${JSON.stringify(inputData)}
                   <span className="text-emerald-600 text-sm font-black">{tripData.currency} {dailyTotal.toLocaleString()}</span>
                 </div>
               </div>
-              {/* 小型優化按鈕 */}
-              <button
-                onClick={handleOptimizeRoute}
-                disabled={isOptimizing}
-                title="AI 路線優化"
-                className="flex p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-50 border border-blue-100"
-              >
-                {isOptimizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Navigation className="w-5 h-5" />}
-              </button>
+              <div className="flex p-1 bg-slate-50 rounded-2xl border border-slate-100">
+                {/* 小型優化按鈕 */}
+                <button
+                  onClick={handleOptimizeRoute}
+                  disabled={isOptimizing}
+                  title="AI 路線優化"
+                  className={`flex p-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50 ${isOptimizing ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm'}`}
+                >
+                  {isOptimizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Route className="w-5 h-5" />}
+                </button>
 
-              {/* 地圖切換按鈕 */}
-              <button
-                onClick={() => setShowMap(!showMap)}
-                title={showMap ? "切換至列表" : "切換至地圖"}
-                className={`flex p-2.5 rounded-xl transition-all active:scale-95 border ${showMap
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                  : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'
-                  }`}
-              >
-                {showMap ? <List className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
-              </button>
+                {/* 地圖切換按鈕 */}
+                <button
+                  onClick={() => setShowMap(!showMap)}
+                  title={showMap ? "切換至列表" : "切換至地圖"}
+                  className={`flex p-2.5 rounded-xl transition-all active:scale-95 ${showMap
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm'
+                    }`}
+                >
+                  {showMap ? <List className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             <button
               onClick={() => handleAddSpot(activeCategory)}
