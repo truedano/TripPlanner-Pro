@@ -85,7 +85,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
 3. 規劃要求：
    - 每天必須包含 2 到 3 個「景點 (spot)」以及 2 到 3 個「伙食 (meal)」項目（餐廳、小吃）。
    - 行程安排應儘量順路且合理。
-   - **地圖連結要求**：請為每個景點與餐廳產生地圖搜尋連結，格式必須為：https://www.google.com/maps/search/?api=1&query=景點名稱。其中「景點名稱」應包含地區名稱以增加精準度（例如：東京晴空塔 或 築地市場一蘭拉麵）。
+    - **地圖與座標要求**：請為每個景點與餐廳產生地圖搜尋連結，格式必須為：https://www.google.com/maps/search/?api=1&query=景點名稱。同時，請根據您的專業知識提供該地點的預估緯度 (lat) 與經度 (lng)，以精確到小數點後 6 位為佳。
 
 4. 輸出限制：
    - 必須嚴格遵守提供的 JSON Schema。
@@ -116,6 +116,8 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
                       endTime: { type: Type.STRING },
                       notes: { type: Type.STRING },
                       mapUrl: { type: Type.STRING, description: 'Google Maps 搜尋連結' },
+                      lat: { type: Type.NUMBER, description: '預估緯度' },
+                      lng: { type: Type.NUMBER, description: '預估經度' },
                       expense: {
                         type: Type.OBJECT,
                         properties: {
@@ -124,7 +126,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
                         }
                       }
                     },
-                    required: ['name', 'type', 'startTime', 'endTime', 'expense', 'mapUrl']
+                    required: ['name', 'type', 'startTime', 'endTime', 'expense', 'mapUrl', 'lat', 'lng']
                   }
                 }
               },

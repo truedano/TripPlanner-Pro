@@ -88,6 +88,20 @@ export const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
                                         {currency} {spot.expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                                     </div>
                                 )}
+                                {spot.lat !== undefined && spot.lng !== undefined && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const url = `https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}`;
+                                            window.open(url, '_blank');
+                                        }}
+                                        className="p-2.5 bg-blue-600 text-white hover:bg-blue-700 transition-all rounded-xl shadow-md hover:shadow-lg active:scale-95 flex items-center justify-center group/nav"
+                                        title="啟動導航"
+                                    >
+                                        <Car className="w-4 h-4" />
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={(e) => {

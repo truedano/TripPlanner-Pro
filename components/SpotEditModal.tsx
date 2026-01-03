@@ -111,6 +111,52 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
                                     )}
                                 </div>
                             </div>
+                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                                <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center">
+                                    <Zap className="w-3 h-3 mr-1" /> 快速貼上座標 (LAT, LNG)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="貼上如：25.034, 121.564"
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (val.includes(',')) {
+                                            const [latStr, lngStr] = val.split(',').map(s => s.trim());
+                                            const lat = parseFloat(latStr);
+                                            const lng = parseFloat(lngStr);
+                                            if (!isNaN(lat) && !isNaN(lng)) {
+                                                onSpotChange({ lat, lng });
+                                                e.target.value = ''; // 成功後清空，方便下次貼入
+                                            }
+                                        }
+                                    }}
+                                    className="w-full px-4 py-2 rounded-xl bg-white border border-blue-100 outline-none text-xs font-bold text-slate-600 focus:border-blue-400 placeholder:text-blue-200"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">緯度 (LAT)</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        placeholder="例如: 25.034"
+                                        value={spot.lat ?? ''}
+                                        onChange={e => onSpotChange({ lat: e.target.value ? parseFloat(e.target.value) : undefined })}
+                                        className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-bold text-slate-600 focus:border-blue-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">經度 (LNG)</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        placeholder="例如: 121.521"
+                                        value={spot.lng ?? ''}
+                                        onChange={e => onSpotChange({ lng: e.target.value ? parseFloat(e.target.value) : undefined })}
+                                        className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-bold text-slate-600 focus:border-blue-400"
+                                    />
+                                </div>
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="relative group">
                                     <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">開始時間 (24H)</label>

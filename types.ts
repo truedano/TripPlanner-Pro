@@ -43,6 +43,8 @@ export interface Spot {
   endTime: string;
   notes: NoteItem[];
   mapUrl: string;
+  lat?: number;
+  lng?: number;
   images?: SpotImage[];
   expenses: ExpenseItem[];
 }

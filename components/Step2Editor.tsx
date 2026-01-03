@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
-import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle } from 'lucide-react';
+import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle, Map as MapIcon, List } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import { DroppableDayTab } from './DroppableDayTab';
@@ -10,6 +10,7 @@ import { SpotEditModal } from './SpotEditModal';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ApiKeyManager } from '../utils/apiKeyManager';
 import { ModalType } from './ModernModal';
+import TripMap from './TripMap';
 import {
   DndContext,
   closestCenter,
@@ -48,6 +49,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
   const [activeDragSpotId, setActiveDragSpotId] = useState<string | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [dismissedHintDay, setDismissedHintDay] = useState<number[]>([]);
+  const [showMap, setShowMap] = useState(false);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -110,24 +112,26 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
     setIsOptimizing(true);
     try {
       const ai = new GoogleGenAI({ apiKey });
-      const inputData = spotsWithNames.map(s => ({ id: s.id, name: s.name, mapUrl: s.mapUrl }));
+      const inputData = spotsWithNames.map(s => ({ id: s.id, name: s.name, mapUrl: s.mapUrl, lat: s.lat, lng: s.lng }));
 
-      const prompt = `你是一位專業的日本旅遊與行程規劃專家。我有一份單日的旅遊景點清單（包含景點名稱與 Google Maps 連結）。
-請分析這些地點的相對位置，並回傳一個「優化後」最順路、且不繞路的推薦排序順序。
+      const prompt = `你是一位專業的日本旅遊與行程規劃專家。我有一份單日的旅遊景點清單（包含景點名稱、Google Maps 連結與座標）。
+請分析這些地點的相對位置，並執行以下動作：
+1. 回傳一個「優化後」最順路、且不繞路的推薦排序順序。
+2. 如果輸入中缺少座標 (lat, lng)，或是您認為座標有誤，請根據您的專業知識提供正確的座標。
 
 **要求：**
 1. 僅根據地理位置進行排序。
-2. 回傳結果必須是一個 JSON ID 陣列，直接包含景點 ID 的順序即可。
-3. 如果輸入中有重複或邏輯可合併的地點，也請保留並排序。
+2. 回傳結果必須是一個包含物件的 JSON 陣列，每個物件包含 id, lat, lng。
+3. 順序必須是優化後的順序。
 
 **輸入資料：**
 ${JSON.stringify(inputData)}
 
 **輸出範例：**
-["uuid-1", "uuid-2", "uuid-3"]`;
+[{"id": "uuid-1", "lat": 35.123, "lng": 139.456}, {"id": "uuid-2", "lat": 35.456, "lng": 139.789}]`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview', // 使用穩定的 Flash 模型
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: 'application/json'
@@ -137,17 +141,27 @@ ${JSON.stringify(inputData)}
       let responseText = response.text || '[]';
       responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-      const optimizedIds = JSON.parse(responseText);
+      const optimizedSpotsData = JSON.parse(responseText);
 
-      if (Array.isArray(optimizedIds) && optimizedIds.length > 0) {
+      if (Array.isArray(optimizedSpotsData) && optimizedSpotsData.length > 0) {
         const remainingSpots = activeDay.spots.filter(s => !s.name);
+
+        // 建立一個 map 來快速查找 AI 回傳的座標資訊
+        const spotDataMap = new Map(optimizedSpotsData.map((item: any) => [item.id, item]));
+
         const sortedSpots = [...spotsWithNames].sort((a, b) => {
-          const aIndex = optimizedIds.indexOf(a.id);
-          const bIndex = optimizedIds.indexOf(b.id);
+          const aIndex = optimizedSpotsData.findIndex((item: any) => item.id === a.id);
+          const bIndex = optimizedSpotsData.findIndex((item: any) => item.id === b.id);
           if (aIndex === -1 && bIndex === -1) return 0;
           if (aIndex === -1) return 1;
           if (bIndex === -1) return -1;
           return aIndex - bIndex;
+        }).map(spot => {
+          const aiData = spotDataMap.get(spot.id) as any;
+          if (aiData) {
+            return { ...spot, lat: aiData.lat, lng: aiData.lng };
+          }
+          return spot;
         });
 
         const newDays = [...tripData.days];
@@ -430,6 +444,18 @@ ${JSON.stringify(inputData)}
               >
                 {isOptimizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Navigation className="w-5 h-5" />}
               </button>
+
+              {/* 地圖切換按鈕 */}
+              <button
+                onClick={() => setShowMap(!showMap)}
+                title={showMap ? "切換至列表" : "切換至地圖"}
+                className={`flex p-2.5 rounded-xl transition-all active:scale-95 border ${showMap
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                  : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'
+                  }`}
+              >
+                {showMap ? <List className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
+              </button>
             </div>
             <button
               onClick={() => handleAddSpot(activeCategory)}
@@ -483,53 +509,59 @@ ${JSON.stringify(inputData)}
           </div>
 
           <div className="min-h-[300px] animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <section>
-              <SortableContext
-                items={
-                  activeCategory === SpotType.SPOT ? groupSpots.map(s => s.id) :
-                    activeCategory === SpotType.TRANSPORT ? groupTransport.map(s => s.id) :
-                      activeCategory === SpotType.STAY ? groupStay.map(s => s.id) :
-                        groupMeals.map(s => s.id)
-                }
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-4">
-                  {(
-                    activeCategory === SpotType.SPOT ? groupSpots :
-                      activeCategory === SpotType.TRANSPORT ? groupTransport :
-                        activeCategory === SpotType.STAY ? groupStay :
-                          groupMeals
-                  ).map(spot => (
-                    <SortableSpotItem
-                      key={spot.id}
-                      spot={spot}
-                      currency={tripData.currency}
-                      onClick={() => handleEditSpot(spot)}
-                      onDelete={() => handleDeleteSpot(spot.id)}
-                    />
-                  ))}
-                  {(
-                    activeCategory === SpotType.SPOT ? groupSpots.length :
-                      activeCategory === SpotType.TRANSPORT ? groupTransport.length :
-                        activeCategory === SpotType.STAY ? groupStay.length :
-                          groupMeals.length
-                  ) === 0 && (
-                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
-                        {activeCategory === SpotType.SPOT ? <MapPin className="w-12 h-12 text-slate-200 mb-4" /> :
-                          activeCategory === SpotType.TRANSPORT ? <Car className="w-12 h-12 text-slate-200 mb-4" /> :
-                            activeCategory === SpotType.STAY ? <Bed className="w-12 h-12 text-slate-200 mb-4" /> :
-                              <Utensils className="w-12 h-12 text-slate-200 mb-4" />}
-                        <p className="text-slate-300 font-bold">
-                          {activeCategory === SpotType.SPOT ? '尚無景點行程，點擊上方按鈕新增' :
-                            activeCategory === SpotType.TRANSPORT ? '尚無交通紀錄，紀錄您的移動開銷' :
-                              activeCategory === SpotType.STAY ? '尚無住宿紀錄，紀錄休息地點與費用' :
-                                '尚無伙食紀錄，紀錄美食地圖與花費'}
-                        </p>
-                      </div>
-                    )}
-                </div>
-              </SortableContext>
-            </section>
+            {showMap ? (
+              <div className="h-[500px] w-full">
+                <TripMap spots={activeDay.spots} />
+              </div>
+            ) : (
+              <section>
+                <SortableContext
+                  items={
+                    activeCategory === SpotType.SPOT ? groupSpots.map(s => s.id) :
+                      activeCategory === SpotType.TRANSPORT ? groupTransport.map(s => s.id) :
+                        activeCategory === SpotType.STAY ? groupStay.map(s => s.id) :
+                          groupMeals.map(s => s.id)
+                  }
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {(
+                      activeCategory === SpotType.SPOT ? groupSpots :
+                        activeCategory === SpotType.TRANSPORT ? groupTransport :
+                          activeCategory === SpotType.STAY ? groupStay :
+                            groupMeals
+                    ).map(spot => (
+                      <SortableSpotItem
+                        key={spot.id}
+                        spot={spot}
+                        currency={tripData.currency}
+                        onClick={() => handleEditSpot(spot)}
+                        onDelete={() => handleDeleteSpot(spot.id)}
+                      />
+                    ))}
+                    {(
+                      activeCategory === SpotType.SPOT ? groupSpots.length :
+                        activeCategory === SpotType.TRANSPORT ? groupTransport.length :
+                          activeCategory === SpotType.STAY ? groupStay.length :
+                            groupMeals.length
+                    ) === 0 && (
+                        <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
+                          {activeCategory === SpotType.SPOT ? <MapPin className="w-12 h-12 text-slate-200 mb-4" /> :
+                            activeCategory === SpotType.TRANSPORT ? <Car className="w-12 h-12 text-slate-200 mb-4" /> :
+                              activeCategory === SpotType.STAY ? <Bed className="w-12 h-12 text-slate-200 mb-4" /> :
+                                <Utensils className="w-12 h-12 text-slate-200 mb-4" />}
+                          <p className="text-slate-300 font-bold">
+                            {activeCategory === SpotType.SPOT ? '尚無景點行程，點擊上方按鈕新增' :
+                              activeCategory === SpotType.TRANSPORT ? '尚無交通紀錄，紀錄您的移動開銷' :
+                                activeCategory === SpotType.STAY ? '尚無住宿紀錄，紀錄休息地點與費用' :
+                                  '尚無伙食紀錄，紀錄美食地圖與花費'}
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                </SortableContext>
+              </section>
+            )}
           </div>
         </div>
 
