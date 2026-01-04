@@ -217,7 +217,13 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTrip = (id: string) => {
-    showAlert('刪除行程', '確定要永久刪除此行程嗎？此操作無法還原（包含雲端備份）。', 'alert', async () => {
+    const tripToDelete = trips.find(t => t.id === id);
+    const tripName = tripToDelete?.name;
+    const message = tripName
+      ? `確定要永久刪除「${tripName}」嗎？此操作無法還原（包含雲端備份）。`
+      : '確定要永久刪除此行程嗎？此操作無法還原（包含雲端備份）。';
+
+    showAlert('刪除行程', message, 'alert', async () => {
       // 1. 本地刪除
       await db.trips.delete(id);
       setTrips(prev => prev.filter(t => t.id !== id));
