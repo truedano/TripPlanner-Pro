@@ -1,7 +1,7 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.2.1)
+# 📝 TripPlanner Pro (v0.2.2)
 ### 您的 AI 智慧旅遊規劃專家
 
 一款專為現代旅人設計的精品行程管理工具。整合了 Gemini AI 的智慧與直覺的地理視覺化功能。
@@ -33,6 +33,7 @@
 ### 🗂️ 全方位行程管理
 - **拖拽式排序**：直覺的 DnD 操作，支援跨天調整行程。
 - **多媒體紀錄**：支援拍照與相簿上傳，紀錄旅行的每一刻。
+- **安心刪除機制**：刪除行程時會明確顯示行程名稱，防止誤刪重要回憶。
 - **預算追蹤**：分類追蹤各項支出（交通、住宿、伙食等），自動統計當日總支出。
 
 ---
