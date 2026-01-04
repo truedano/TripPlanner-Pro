@@ -187,7 +187,7 @@ const App: React.FC = () => {
         // 修正：如果目前資料庫還沒載入完成(trips為空)，或是找不到該行程，
         // 則不要更新 lastActiveTripId，等待下一次 trips 更新時再次嘗試導航。
         if (trip) {
-          if (trip.days.length > 0) setStep(Step.PLANNING);
+          if (Array.isArray(trip.days) && trip.days.length > 0) setStep(Step.PLANNING);
           else setStep(Step.SETUP);
 
           lastActiveTripId.current = activeTripId; // 只有成功找到行程並設定 Step 後，才更新 Ref
@@ -317,7 +317,7 @@ const App: React.FC = () => {
           showAlert('遺漏資訊', '請先填寫行程名稱與旅遊日期區間。');
           return;
         }
-        if (activeTrip.days.length === 0) {
+        if (!Array.isArray(activeTrip.days) || activeTrip.days.length === 0) {
           showAlert('行程未建立', '請先使用 AI 智慧規劃或手動建立行程框架。');
           return;
         }

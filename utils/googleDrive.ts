@@ -175,7 +175,10 @@ export const downloadFileContent = async (fileId: string): Promise<TripData | nu
             fileId: fileId,
             alt: 'media',
         });
-        return response.result;
+        const data = response.result;
+        if (!data) return null;
+        if (!Array.isArray(data.days)) data.days = [];
+        return data;
     } catch (e) {
         console.error('Download failed', e);
         return null;

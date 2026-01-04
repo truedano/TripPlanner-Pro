@@ -198,17 +198,20 @@ export const TripDashboard: React.FC<Props> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {trips.map(trip => {
-            const totalSpots = trip.days ? trip.days.reduce((acc, day) => acc + (day.spots ? day.spots.length : 0), 0) : 0;
+            const days = Array.isArray(trip.days) ? trip.days : [];
+            const totalSpots = days.reduce((acc, day) => acc + (day.spots ? day.spots.length : 0), 0);
             const duration = trip.startDate && trip.endDate
               ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
               : 0;
 
             let firstImage = null;
-            for (const day of trip.days) {
-              for (const spot of day.spots) {
-                if (spot.images && spot.images.length > 0) {
-                  firstImage = spot.images[0].url;
-                  break;
+            for (const day of days) {
+              if (day.spots) {
+                for (const spot of day.spots) {
+                  if (spot.images && spot.images.length > 0) {
+                    firstImage = spot.images[0].url;
+                    break;
+                  }
                 }
               }
               if (firstImage) break;
