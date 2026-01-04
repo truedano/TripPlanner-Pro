@@ -1,7 +1,7 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Spot, SpotType, IdentifiableSpotImage } from '../types';
-import { X, MapPin, Zap, Clock, Wallet, Plus, Trash2, Edit3, Camera, Library } from 'lucide-react';
+import { X, MapPin, Zap, Clock, Wallet, Plus, Trash2, Edit3, Camera, Library, Loader2, Wand2 } from 'lucide-react';
 import { DndContext, closestCenter, SensorDescriptor, SensorOptions } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableImageItem } from './SortableImageItem';
@@ -51,6 +51,77 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const startTimeInputRef = useRef<HTMLInputElement>(null);
     const endTimeInputRef = useRef<HTMLInputElement>(null);
+    const [isParsingUrl, setIsParsingUrl] = useState(false);
+
+    const extractCoordsFromUrl = (url: string) => {
+        console.log('[UrlParser] 嘗試解析:', url);
+
+        // 1. 匹配 @lat,lng
+        const atMatch = url.match(/@([-?\d\.]+),([-?\d\.]+)/);
+        if (atMatch) return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
+
+        // 2. 匹配 !3dLat...!4dLng (支援中間有其他參數)
+        const dMatch = url.match(/!3d([-?\d\.]+).*?!4d([-?\d\.]+)/);
+        if (dMatch) return { lat: parseFloat(dMatch[1]), lng: parseFloat(dMatch[2]) };
+
+        // 3. 匹配 q=lat,lng 或 ll=lat,lng
+        const qlMatch = url.match(/[?&](?:q|ll)=([-?\d\.]+),([-?\d\.]+)/);
+        if (qlMatch) return { lat: parseFloat(qlMatch[1]), lng: parseFloat(qlMatch[2]) };
+
+        // 4. 通用匹配 /lat,lng
+        const genericMatch = url.match(/\/([-?\d\.]+),([-?\d\.]+)/);
+        if (genericMatch) {
+            const lat = parseFloat(genericMatch[1]);
+            const lng = parseFloat(genericMatch[2]);
+            if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) return { lat, lng };
+        }
+
+        return null;
+    };
+
+    const handleMapUrlChange = async (url: string) => {
+        const trimmedUrl = url.trim();
+        onSpotChange({ mapUrl: trimmedUrl });
+
+        if (!trimmedUrl) return;
+
+        // 1. 嘗試直接解析
+        const directCoords = extractCoordsFromUrl(trimmedUrl);
+        if (directCoords) {
+            console.log('[UrlParser] 長網址解析成功:', directCoords);
+            onSpotChange({ mapUrl: trimmedUrl, ...directCoords });
+            return;
+        }
+
+        // 2. 處理短網址
+        if (trimmedUrl.includes('goo.gl') || trimmedUrl.includes('maps.app.goo.gl')) {
+            try {
+                setIsParsingUrl(true);
+                const gasBase = 'https://script.google.com/macros/s/AKfycbxih_a4CEunibjXG4TIHMHS2Un1vRNMS76yqP0Bhhkk-G0xQFw3H2Emb3S6QEyUrPU/exec';
+                const gasUrl = `${gasBase}?url=${encodeURIComponent(trimmedUrl)}`;
+
+                const response = await fetch(gasUrl, { redirect: 'follow' });
+                const data = await response.json();
+
+                if (data.longUrl) {
+                    const extracted = extractCoordsFromUrl(data.longUrl);
+                    if (extracted) {
+                        onSpotChange({
+                            mapUrl: trimmedUrl,
+                            lat: extracted.lat,
+                            lng: extracted.lng
+                        });
+                    } else {
+                        console.warn('[UrlParser] 解析長網址失敗，找不到座標標記');
+                    }
+                }
+            } catch (error) {
+                console.error('[UrlParser] 解析失敗:', error);
+            } finally {
+                setIsParsingUrl(false);
+            }
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -95,9 +166,28 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
                                         type="url"
                                         placeholder="貼上 Google Maps 網址..."
                                         value={spot.mapUrl || ''}
-                                        onChange={e => onSpotChange({ mapUrl: e.target.value })}
-                                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700 pr-12"
+                                        onChange={e => handleMapUrlChange(e.target.value)}
+                                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold text-slate-700 pr-12 transition-all"
                                     />
+                                    {isParsingUrl && (
+                                        <div className="absolute right-12 top-1/2 -translate-y-1/2 px-2">
+                                            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                        </div>
+                                    )}
+                                    {spot.mapUrl && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                console.log('手動按鈕被點擊');
+                                                handleMapUrlChange(spot.mapUrl!);
+                                            }}
+                                            disabled={isParsingUrl}
+                                            className={`absolute right-10 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all ${isParsingUrl ? 'text-slate-200 cursor-wait' : 'text-slate-300 hover:text-blue-500 hover:bg-slate-100'}`}
+                                            title="手動重新解析座標"
+                                        >
+                                            <Wand2 className={`w-5 h-5 ${isParsingUrl ? 'animate-pulse' : ''}`} />
+                                        </button>
+                                    )}
                                     {spot.mapUrl && (
                                         <a
                                             href={spot.mapUrl}
