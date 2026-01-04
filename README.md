@@ -1,7 +1,7 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.2.0)
+# 📝 TripPlanner Pro (v0.2.1)
 ### 您的 AI 智慧旅遊規劃專家
 
 一款專為現代旅人設計的精品行程管理工具。整合了 Gemini AI 的智慧與直覺的地理視覺化功能。
@@ -24,7 +24,7 @@
 ### 🗺️ 互動式地圖視覺化 (New)
 - **視覺化動線**：整合 Leaflet 地圖，直接在編輯器中查看到當日景點分布與移動曲線。
 - **全螢幕地圖切換**：靈活切換「列表模式」與「地圖模式」。
-- **座標快速管理**：支援從 Google Maps 座標「一秒貼上」功能，座標解析零時差。
+- **座標快速管理**：全面支援 Google Maps 網址解析 (含短網址與座標格式)，亦可直接貼上「緯度, 經度」。
 
 ### 📱 隨身導航助理
 - **一鍵智慧導航**：在列表或地圖中點擊導航按鈕，立即喚起 Google Maps 啟動路徑導引。
@@ -56,6 +56,25 @@
    ```bash
    npm run dev
    ```
+
+### 🌍 設定 Google Maps 短網址解析 (選填)
+為了讓應用程式能解析 `maps.app.goo.gl` 這類短網址，本專案使用 Google Apps Script 作為中介服務。
+
+1. **取得程式碼**：
+   複製專案目錄下 `scripts/GoogleMapsUrlResolver.gs` 的內容。
+
+2. **建立 GAS 專案**：
+   前往 [Google Apps Script](https://script.google.com/) 建立新專案，將程式碼貼入 `Code.gs`。
+
+3. **部署服務**：
+   - 點擊右上角「部署」>「新建部署」。
+   - 選擇類型為「網頁應用程式」。
+   - **誰可以存取**：務必設為「**任何人 (Anyone)**」以允許跨網域請求。
+   - 複製部署後的 Web App URL。
+
+4. **更新專案設定**：
+   - 開啟 `components/SpotEditModal.tsx`。
+   - 找到 `gasBase` 變數，替換為您的 Web App URL。
 
 ---
 
