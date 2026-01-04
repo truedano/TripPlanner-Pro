@@ -183,11 +183,15 @@ const App: React.FC = () => {
       // 只有當切換行程時，才根據進度決定預設步驟
       if (activeTripId !== lastActiveTripId.current) {
         const trip = trips.find(t => t.id === activeTripId);
+
+        // 修正：如果目前資料庫還沒載入完成(trips為空)，或是找不到該行程，
+        // 則不要更新 lastActiveTripId，等待下一次 trips 更新時再次嘗試導航。
         if (trip) {
           if (trip.days.length > 0) setStep(Step.PLANNING);
           else setStep(Step.SETUP);
+
+          lastActiveTripId.current = activeTripId; // 只有成功找到行程並設定 Step 後，才更新 Ref
         }
-        lastActiveTripId.current = activeTripId;
       }
     } else {
       localStorage.removeItem(ACTIVE_TRIP_ID_KEY);
