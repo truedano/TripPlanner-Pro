@@ -54,8 +54,6 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
     const [isParsingUrl, setIsParsingUrl] = useState(false);
 
     const extractCoordsFromUrl = (url: string) => {
-        console.log('[UrlParser] 嘗試解析:', url);
-
         // 1. 匹配 @lat,lng
         const atMatch = url.match(/@([-?\d\.]+),([-?\d\.]+)/);
         if (atMatch) return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
@@ -88,7 +86,6 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
         // 1. 嘗試直接解析
         const directCoords = extractCoordsFromUrl(trimmedUrl);
         if (directCoords) {
-            console.log('[UrlParser] 長網址解析成功:', directCoords);
             onSpotChange({ mapUrl: trimmedUrl, ...directCoords });
             return;
         }
