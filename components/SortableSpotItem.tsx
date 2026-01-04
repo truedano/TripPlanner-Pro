@@ -74,7 +74,7 @@ export const SortableSpotItem: React.FC<SortableSpotItemProps> = ({
                         <div className="flex justify-between items-start gap-2 mb-2">
                             <div className="flex flex-col min-w-0 flex-1">
                                 <span className={`text-[10px] font-black uppercase tracking-tighter mb-1 ${styleConfig.color}`}>{styleConfig.label}</span>
-                                <h4 className="font-black text-base sm:text-lg text-slate-800 truncate">{spot.name || `未命名${styleConfig.label}`}</h4>
+                                <h4 className="font-black text-base sm:text-lg text-slate-800 break-words leading-tight">{spot.name || `未命名${styleConfig.label}`}</h4>
                             </div>
 
                             <div className="flex items-center shrink-0 space-x-1">
