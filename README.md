@@ -1,7 +1,9 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.2.3)
+# 📝 TripPlanner Pro (v0.2.4)
+
+
 ### 您的 AI 智慧旅遊規劃專家
 
 一款專為現代旅人設計的精品行程管理工具。整合了 Gemini AI 的智慧與直覺的地理視覺化功能。
@@ -74,8 +76,8 @@
    - 複製部署後的 Web App URL。
 
 4. **更新專案設定**：
-   - 開啟 `components/SpotEditModal.tsx`。
-   - 找到 `gasBase` 變數，替換為您的 Web App URL。
+   - 在專案根目錄建立或開啟 `.env` 檔案。
+   - 新增變數 `VITE_GOOGLE_SCRIPT_URL=您的_WEB_APP_URL`。
 
 ---
 
