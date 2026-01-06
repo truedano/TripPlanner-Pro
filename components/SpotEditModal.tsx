@@ -94,7 +94,7 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
         if (trimmedUrl.includes('goo.gl') || trimmedUrl.includes('maps.app.goo.gl')) {
             try {
                 setIsParsingUrl(true);
-                const gasBase = 'https://script.google.com/macros/s/AKfycbxih_a4CEunibjXG4TIHMHS2Un1vRNMS76yqP0Bhhkk-G0xQFw3H2Emb3S6QEyUrPU/exec';
+                const gasBase = import.meta.env.VITE_GOOGLE_SCRIPT_URL || '';
                 const gasUrl = `${gasBase}?url=${encodeURIComponent(trimmedUrl)}`;
 
                 const response = await fetch(gasUrl, { redirect: 'follow' });
