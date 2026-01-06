@@ -159,13 +159,25 @@ export const listAllTripsFromDrive = async () => {
     window.gapi.client.setToken({ access_token: token });
 
     const q = "name contains '[TripPlanner]' and mimeType = 'application/json' and trashed = false";
-    const response = await window.gapi.client.drive.files.list({
-        q: q,
-        fields: 'files(id, name, appProperties)',
-        spaces: 'drive',
-    });
+    let allFiles: any[] = [];
+    let pageToken: string | undefined = undefined;
 
-    return response.result.files || [];
+    do {
+        const response: any = await window.gapi.client.drive.files.list({
+            q: q,
+            fields: 'nextPageToken, files(id, name, appProperties)',
+            spaces: 'drive',
+            pageToken: pageToken
+        });
+
+        const files = response.result.files;
+        if (files) {
+            allFiles = allFiles.concat(files);
+        }
+        pageToken = response.result.nextPageToken;
+    } while (pageToken);
+
+    return allFiles;
 };
 
 // 下載特定檔案內容
