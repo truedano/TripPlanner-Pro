@@ -5,6 +5,7 @@ import { X, MapPin, Zap, Clock, Wallet, Plus, Trash2, Edit3, Camera, Library, Lo
 import { DndContext, closestCenter, SensorDescriptor, SensorOptions } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableImageItem } from './SortableImageItem';
+import { extractCoordsFromUrl, resolveMapUrl } from '../utils/mapUrlParser';
 
 interface SpotEditModalProps {
     isOpen: boolean;
@@ -53,67 +54,30 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
     const endTimeInputRef = useRef<HTMLInputElement>(null);
     const [isParsingUrl, setIsParsingUrl] = useState(false);
 
-    const extractCoordsFromUrl = (url: string) => {
-        // 1. 匹配 @lat,lng
-        const atMatch = url.match(/@([-?\d\.]+),([-?\d\.]+)/);
-        if (atMatch) return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
-
-        // 2. 匹配 !3dLat...!4dLng (支援中間有其他參數)
-        const dMatch = url.match(/!3d([-?\d\.]+).*?!4d([-?\d\.]+)/);
-        if (dMatch) return { lat: parseFloat(dMatch[1]), lng: parseFloat(dMatch[2]) };
-
-        // 3. 匹配 q=lat,lng 或 ll=lat,lng
-        const qlMatch = url.match(/[?&](?:q|ll)=([-?\d\.]+),([-?\d\.]+)/);
-        if (qlMatch) return { lat: parseFloat(qlMatch[1]), lng: parseFloat(qlMatch[2]) };
-
-        // 4. 通用匹配 /lat,lng
-        const genericMatch = url.match(/\/([-?\d\.]+),([-?\d\.]+)/);
-        if (genericMatch) {
-            const lat = parseFloat(genericMatch[1]);
-            const lng = parseFloat(genericMatch[2]);
-            if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) return { lat, lng };
-        }
-
-        return null;
-    };
-
     const handleMapUrlChange = async (url: string) => {
         const trimmedUrl = url.trim();
         onSpotChange({ mapUrl: trimmedUrl });
 
         if (!trimmedUrl) return;
 
-        // 1. 嘗試直接解析
-        const directCoords = extractCoordsFromUrl(trimmedUrl);
-        if (directCoords) {
-            onSpotChange({ mapUrl: trimmedUrl, ...directCoords });
+        // 使用 util 解析
+        const coords = extractCoordsFromUrl(trimmedUrl);
+        if (coords) {
+            onSpotChange({ mapUrl: trimmedUrl, ...coords });
             return;
         }
 
-        // 2. 處理短網址
         if (trimmedUrl.includes('goo.gl') || trimmedUrl.includes('maps.app.goo.gl')) {
+            setIsParsingUrl(true);
             try {
-                setIsParsingUrl(true);
-                const gasBase = import.meta.env.VITE_GOOGLE_SCRIPT_URL || '';
-                const gasUrl = `${gasBase}?url=${encodeURIComponent(trimmedUrl)}`;
-
-                const response = await fetch(gasUrl, { redirect: 'follow' });
-                const data = await response.json();
-
-                if (data.longUrl) {
-                    const extracted = extractCoordsFromUrl(data.longUrl);
-                    if (extracted) {
-                        onSpotChange({
-                            mapUrl: trimmedUrl,
-                            lat: extracted.lat,
-                            lng: extracted.lng
-                        });
-                    } else {
-                        console.warn('[UrlParser] 解析長網址失敗，找不到座標標記');
-                    }
+                const resolved = await resolveMapUrl(trimmedUrl);
+                if (resolved) {
+                    onSpotChange({
+                        mapUrl: trimmedUrl,
+                        lat: resolved.lat,
+                        lng: resolved.lng
+                    });
                 }
-            } catch (error) {
-                console.error('[UrlParser] 解析失敗:', error);
             } finally {
                 setIsParsingUrl(false);
             }
