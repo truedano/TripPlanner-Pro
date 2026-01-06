@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { TripData, Step } from '../types';
+import { TripData, Step, GoogleUserProfile } from '../types';
 import { db } from '../db';
 import { ModalType } from '../components/ModernModal';
 import {
@@ -19,7 +19,7 @@ export const useCloudSync = (
 ) => {
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
     const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-    const [cloudUser, setCloudUser] = useState<any>(null);
+    const [cloudUser, setCloudUser] = useState<GoogleUserProfile | null>(null);
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const tripsRef = useRef<TripData[]>(trips);
 
@@ -47,10 +47,12 @@ export const useCloudSync = (
                             setCloudStatus('disconnected');
                         }
                     } catch (e) {
+                        console.error('Cloud Init Error (Token/Profile):', e);
                         setCloudStatus('disconnected');
                     }
                 }
             } catch (err) {
+                console.error('Cloud Init Error (Services):', err);
                 setCloudStatus('disconnected');
             }
         };
@@ -97,17 +99,24 @@ export const useCloudSync = (
             }
 
             // Handle deletions from cloud (parity sync)
-            const driveTripIds = new Set(driveFiles.map((f: any) => f.appProperties?.tripId).filter(Boolean));
             const tripsToKeep: TripData[] = [];
 
-            for (const trip of updatedTrips) {
-                if (trip.lastSyncedAt && !driveTripIds.has(trip.id)) {
-                    console.log(`Parity sync: Removing local trip ${trip.name} as it was deleted from cloud.`);
-                    await db.trips.delete(trip.id);
-                    if (activeTripId === trip.id) setActiveTripId(null);
-                    listChanged = true;
-                } else {
-                    tripsToKeep.push(trip);
+            // Safety Guard: Avoid mass deletion if API returns empty list unexpectedly (prevent data loss)
+            if (driveFiles.length === 0 && localTrips.length > 0) {
+                console.warn('SafeGuard: Drive returned 0 files while local has data. Skipping parity deletion.');
+                tripsToKeep.push(...updatedTrips);
+            } else {
+                const driveTripIds = new Set(driveFiles.map((f: any) => f.appProperties?.tripId).filter(Boolean));
+
+                for (const trip of updatedTrips) {
+                    if (trip.lastSyncedAt && !driveTripIds.has(trip.id)) {
+                        console.log(`Parity sync: Removing local trip ${trip.name} as it was deleted from cloud.`);
+                        await db.trips.delete(trip.id);
+                        if (activeTripId === trip.id) setActiveTripId(null);
+                        listChanged = true;
+                    } else {
+                        tripsToKeep.push(trip);
+                    }
                 }
             }
 

@@ -73,3 +73,10 @@ export enum Step {
   PLANNING = 2,
   SUMMARY = 3
 }
+
+export interface GoogleUserProfile {
+  displayName: string;
+  emailAddress: string;
+  photoLink?: string;
+  permissionId?: string;
+}
