@@ -21,6 +21,11 @@ export const useCloudSync = (
     const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
     const [cloudUser, setCloudUser] = useState<any>(null);
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const tripsRef = useRef<TripData[]>(trips);
+
+    useEffect(() => {
+        tripsRef.current = trips;
+    }, [trips]);
 
     // Initialization: Check connection status and initial sync
     useEffect(() => {
@@ -58,35 +63,56 @@ export const useCloudSync = (
         setSyncStatus('syncing');
         try {
             const driveFiles = await listAllTripsFromDrive();
-            const localTrips = await db.trips.toArray();
+            // Parallel download
+            const downloads = await Promise.all(driveFiles.map(async (file: any) => {
+                const content = await downloadFileContent(file.id);
+                return { file, content };
+            }));
 
-            for (const file of driveFiles) {
+            const localTrips = await db.trips.toArray();
+            let updatedTrips = [...localTrips];
+            let listChanged = false;
+
+            // Process updates/adds
+            for (const { file, content } of downloads) {
+                if (!content) continue;
+                const remoteTrip = content;
                 const tripId = file.appProperties?.tripId;
                 if (!tripId) continue;
 
-                const remoteTrip = await downloadFileContent(file.id);
-                if (!remoteTrip) continue;
+                const localMatchIndex = updatedTrips.findIndex(t => t.id === tripId);
 
-                const localMatch = localTrips.find(t => t.id === tripId);
-
-                if (!localMatch) {
+                if (localMatchIndex === -1) {
                     await db.trips.add(remoteTrip);
-                    setTrips(prev => [...prev.filter(t => t.id !== tripId), remoteTrip]);
-                } else if ((remoteTrip.lastModified || 0) > (localMatch.lastModified || 0)) {
-                    await db.trips.put(remoteTrip);
-                    setTrips(prev => prev.map(t => t.id === tripId ? remoteTrip : t));
+                    updatedTrips.push(remoteTrip);
+                    listChanged = true;
+                } else {
+                    const localTrip = updatedTrips[localMatchIndex];
+                    if ((remoteTrip.lastModified || 0) > (localTrip.lastModified || 0)) {
+                        await db.trips.put(remoteTrip);
+                        updatedTrips[localMatchIndex] = remoteTrip;
+                        listChanged = true;
+                    }
                 }
             }
 
             // Handle deletions from cloud (parity sync)
-            const driveTripIds = driveFiles.map(f => f.appProperties?.tripId).filter(Boolean);
-            for (const localTrip of localTrips) {
-                if (localTrip.lastSyncedAt && !driveTripIds.includes(localTrip.id)) {
-                    console.log(`Parity sync: Removing local trip ${localTrip.name} as it was deleted from cloud.`);
-                    await db.trips.delete(localTrip.id);
-                    setTrips(prev => prev.filter(t => t.id !== localTrip.id));
-                    if (activeTripId === localTrip.id) setActiveTripId(null);
+            const driveTripIds = new Set(driveFiles.map((f: any) => f.appProperties?.tripId).filter(Boolean));
+            const tripsToKeep: TripData[] = [];
+
+            for (const trip of updatedTrips) {
+                if (trip.lastSyncedAt && !driveTripIds.has(trip.id)) {
+                    console.log(`Parity sync: Removing local trip ${trip.name} as it was deleted from cloud.`);
+                    await db.trips.delete(trip.id);
+                    if (activeTripId === trip.id) setActiveTripId(null);
+                    listChanged = true;
+                } else {
+                    tripsToKeep.push(trip);
                 }
+            }
+
+            if (listChanged) {
+                setTrips(tripsToKeep);
             }
 
             setSyncStatus('synced');
@@ -102,27 +128,40 @@ export const useCloudSync = (
         const backgroundSync = async () => {
             if (cloudStatus !== 'connected' || step !== Step.DASHBOARD) return;
 
-            const unSyncedTrips = trips.filter(t => !t.lastSyncedAt || t.lastModified > t.lastSyncedAt);
+            const currentTrips = tripsRef.current;
+            const unSyncedTrips = currentTrips.filter(t => !t.lastSyncedAt || t.lastModified > (t.lastSyncedAt || 0));
+
             if (unSyncedTrips.length === 0) {
                 await syncAllFromCloud();
                 return;
             }
 
             console.log(`Background Sync: ${unSyncedTrips.length} trips pending.`);
-            for (const trip of unSyncedTrips) {
+
+            const results = await Promise.all(unSyncedTrips.map(async (trip) => {
                 try {
                     const syncTime = await saveTripToDrive(trip, true);
                     await db.trips.update(trip.id, { lastSyncedAt: syncTime });
-                    setTrips(prev => prev.map(t => t.id === trip.id ? { ...t, lastSyncedAt: syncTime } : t));
+                    return { id: trip.id, syncTime };
                 } catch (e) {
                     console.warn('Background sync failed for', trip.name);
+                    return null;
                 }
+            }));
+
+            const successful = results.filter((r): r is { id: string, syncTime: number } => r !== null);
+
+            if (successful.length > 0) {
+                setTrips(prev => prev.map(t => {
+                    const match = successful.find(s => s.id === t.id);
+                    return match ? { ...t, lastSyncedAt: match.syncTime } : t;
+                }));
             }
         };
 
         const interval = setInterval(backgroundSync, 30000);
         return () => clearInterval(interval);
-    }, [cloudStatus, trips, step, setTrips]);
+    }, [cloudStatus, step]);
 
     const handleConnectCloud = async () => {
         setCloudStatus('connecting');
