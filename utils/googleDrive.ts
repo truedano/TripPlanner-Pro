@@ -32,6 +32,7 @@ export const initGoogleServices = async () => {
     }
 
     return new Promise<boolean>((resolve) => {
+        let attemptsGapi = 0;
         const checkGapi = () => {
             if (window.gapi) {
                 window.gapi.load('client', async () => {
@@ -42,10 +43,17 @@ export const initGoogleServices = async () => {
                     if (gisInited) resolve(true);
                 });
             } else {
+                attemptsGapi++;
+                if (attemptsGapi > 50) { // 5 seconds timeout
+                    console.error('Google GAPI script failed to load.');
+                    resolve(false);
+                    return;
+                }
                 setTimeout(checkGapi, 100);
             }
         };
 
+        let attemptsGis = 0;
         const checkGis = () => {
             if (window.google && window.google.accounts) {
                 tokenClient = window.google.accounts.oauth2.initTokenClient({
@@ -61,6 +69,12 @@ export const initGoogleServices = async () => {
                 gisInited = true;
                 if (gapiInited) resolve(true);
             } else {
+                attemptsGis++;
+                if (attemptsGis > 50) { // 5 second timeout
+                    console.error('Google GIS script failed to load.');
+                    resolve(false);
+                    return;
+                }
                 setTimeout(checkGis, 100);
             }
         };

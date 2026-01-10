@@ -50,6 +50,8 @@ export const useCloudSync = (
                         console.error('Cloud Init Error (Token/Profile):', e);
                         setCloudStatus('disconnected');
                     }
+                } else {
+                    setCloudStatus('disconnected');
                 }
             } catch (err) {
                 console.error('Cloud Init Error (Services):', err);
