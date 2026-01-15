@@ -81,10 +81,10 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
   const activeDaySpots = activeDay ? activeDay.spots : [];
 
   // Grouping logic
-  const groupSpots = activeDaySpots.filter(s => !s.type || s.type === SpotType.SPOT);
-  const groupTransport = activeDaySpots.filter(s => s.type === SpotType.TRANSPORT);
-  const groupStay = activeDaySpots.filter(s => s.type === SpotType.STAY);
-  const groupMeals = activeDaySpots.filter(s => s.type === SpotType.MEAL);
+  const groupSpots = useMemo(() => activeDaySpots.filter(s => !s.type || s.type === SpotType.SPOT), [activeDaySpots]);
+  const groupTransport = useMemo(() => activeDaySpots.filter(s => s.type === SpotType.TRANSPORT), [activeDaySpots]);
+  const groupStay = useMemo(() => activeDaySpots.filter(s => s.type === SpotType.STAY), [activeDaySpots]);
+  const groupMeals = useMemo(() => activeDaySpots.filter(s => s.type === SpotType.MEAL), [activeDaySpots]);
 
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
 
@@ -93,9 +93,10 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   };
 
-  const dailyTotal = activeDay.spots.reduce((sum, spot) =>
-    sum + (spot.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0
-  );
+  const dailyTotal = useMemo(() =>
+    activeDay.spots.reduce((sum, spot) =>
+      sum + (spot.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0
+    ), [activeDay.spots]);
 
   const handleOptimizeRoute = async () => {
     const spotsWithNames = activeDay.spots.filter(s => s.name);
