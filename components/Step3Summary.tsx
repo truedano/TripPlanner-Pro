@@ -5,6 +5,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { TripPdfDocument } from './TripPdfDocument';
 import { ModalType } from './ModernModal';
 import { saveTripToDrive } from '../utils/googleDrive';
+import { CATEGORY_THEMES } from '../utils/constants';
 
 interface Props {
   tripData: TripData;
@@ -158,16 +159,12 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
               <div className="relative w-48 h-48 shrink-0">
                 <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                   {(() => {
-                    const categories = [
-                      { type: SpotType.MEAL, color: '#F43F5E', label: '伙食' },
-                      { type: SpotType.TRANSPORT, color: '#F97316', label: '交通' },
-                      { type: SpotType.STAY, color: '#A855F7', label: '住宿' },
-                      { type: SpotType.SPOT, color: '#3B82F6', label: '景點' },
-                    ];
-                    const catTotals = categories.map(cat => ({
-                      ...cat,
+                    const catTotals = (Object.entries(CATEGORY_THEMES) as [SpotType, typeof CATEGORY_THEMES[SpotType]][]).map(([type, theme]) => ({
+                      type,
+                      color: theme.hexColor,
+                      label: theme.label,
                       total: allSpots
-                        .filter(s => (s.type || SpotType.SPOT) === cat.type)
+                        .filter(s => (s.type || SpotType.SPOT) === type)
                         .reduce((sum, s) => sum + (s.expenses?.reduce((acc, e) => acc + (e.amount || 0), 0) || 0), 0)
                     })).filter(c => c.total > 0);
 
@@ -209,23 +206,17 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
 
               <div className="flex-grow space-y-4 w-full">
                 {(() => {
-                  const categories = [
-                    { type: SpotType.MEAL, color: 'bg-rose-500', label: '伙食' },
-                    { type: SpotType.TRANSPORT, color: 'bg-orange-500', label: '交通' },
-                    { type: SpotType.STAY, color: 'bg-purple-500', label: '住宿' },
-                    { type: SpotType.SPOT, color: 'bg-blue-500', label: '景點' },
-                  ];
                   const grandTotal = totalActual || 1;
-                  return categories.map(cat => {
+                  return (Object.entries(CATEGORY_THEMES) as [SpotType, typeof CATEGORY_THEMES[SpotType]][]).map(([type, theme]) => {
                     const total = allSpots
-                      .filter(s => (s.type || SpotType.SPOT) === cat.type)
+                      .filter(s => (s.type || SpotType.SPOT) === type)
                       .reduce((sum, s) => sum + (s.expenses?.reduce((acc, e) => acc + (e.amount || 0), 0) || 0), 0);
                     const percent = (total / grandTotal) * 100;
                     return (
-                      <div key={cat.type} className="flex items-center justify-between">
+                      <div key={type} className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${cat.color}`} />
-                          <span className="text-sm font-bold text-slate-600">{cat.label}</span>
+                          <div className={`w-3 h-3 rounded-full ${theme.dotColor}`} />
+                          <span className="text-sm font-bold text-slate-600">{theme.label}</span>
                         </div>
                         <div className="flex items-center space-x-4">
                           <span className="text-xs font-black text-slate-400">{percent.toFixed(1)}%</span>
@@ -336,19 +327,9 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
               </div>
               <div className={viewMode === 'journal' ? 'space-y-20' : 'space-y-6'}>
                 {day.spots.map((spot) => {
-                  const CategoryIcon = {
-                    [SpotType.SPOT]: MapPin,
-                    [SpotType.TRANSPORT]: Car,
-                    [SpotType.STAY]: Bed,
-                    [SpotType.MEAL]: Utensils
-                  }[spot.type || SpotType.SPOT] || MapPin;
-
-                  const categoryTheme = {
-                    [SpotType.SPOT]: { color: 'text-blue-500', bg: 'bg-blue-50', label: '景點' },
-                    [SpotType.TRANSPORT]: { color: 'text-orange-500', bg: 'bg-orange-50', label: '交通' },
-                    [SpotType.STAY]: { color: 'text-purple-500', bg: 'bg-purple-50', label: '住宿' },
-                    [SpotType.MEAL]: { color: 'text-rose-500', bg: 'bg-rose-50', label: '伙食' }
-                  }[spot.type || SpotType.SPOT] || { color: 'text-blue-500', bg: 'bg-blue-50', label: '景點' };
+                  const currentType = spot.type || SpotType.SPOT;
+                  const theme = CATEGORY_THEMES[currentType];
+                  const CategoryIcon = theme.icon;
 
                   return (
                     <div key={spot.id} className={`${viewMode === 'journal' ? 'max-w-4xl mx-auto' : 'bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm'}`}>
@@ -356,9 +337,9 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
                         <div className="flex-grow">
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center space-x-3">
-                              <div className={`flex items-center px-3 py-1 rounded-full ${categoryTheme.bg} ${categoryTheme.color} text-[10px] font-black uppercase tracking-widest`}>
+                              <div className={`flex items-center px-3 py-1 rounded-full ${theme.bgColor} ${theme.color} text-[10px] font-black uppercase tracking-widest`}>
                                 <CategoryIcon className="w-3 h-3 mr-1" />
-                                <span>{categoryTheme.label}</span>
+                                <span>{theme.label}</span>
                               </div>
                               <div className="flex items-center text-slate-400 font-black text-[10px] uppercase tracking-widest">
                                 <Clock className="w-3 h-3 mr-1" />

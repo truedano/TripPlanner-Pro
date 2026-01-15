@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { cn } from '../utils/classnames';
 import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
 import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle, Map as MapIcon, List, Route } from 'lucide-react';
+import { CATEGORY_THEMES } from '../utils/constants';
 import { ModernModal } from './ModernModal';
 import { compressImage } from '../utils/image';
 import { DroppableDayTab } from './DroppableDayTab';
@@ -80,11 +81,24 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
   const activeDay = (tripData.days && tripData.days.length > 0) ? tripData.days[activeDayIndex] : undefined;
   const activeDaySpots = activeDay ? activeDay.spots : [];
 
-  // Grouping logic
-  const groupSpots = useMemo(() => activeDaySpots.filter(s => !s.type || s.type === SpotType.SPOT), [activeDaySpots]);
-  const groupTransport = useMemo(() => activeDaySpots.filter(s => s.type === SpotType.TRANSPORT), [activeDaySpots]);
-  const groupStay = useMemo(() => activeDaySpots.filter(s => s.type === SpotType.STAY), [activeDaySpots]);
-  const groupMeals = useMemo(() => activeDaySpots.filter(s => s.type === SpotType.MEAL), [activeDaySpots]);
+  // Categorized data logic
+  const { filteredSpots, spotCounts } = useMemo(() => {
+    const counts = { [SpotType.SPOT]: 0, [SpotType.TRANSPORT]: 0, [SpotType.STAY]: 0, [SpotType.MEAL]: 0 };
+    const filtered: Spot[] = [];
+
+    activeDaySpots.forEach(s => {
+      const type = s.type || SpotType.SPOT;
+      counts[type]++;
+
+      if (activeCategory === SpotType.SPOT) {
+        if (!s.type || s.type === SpotType.SPOT) filtered.push(s);
+      } else if (s.type === activeCategory) {
+        filtered.push(s);
+      }
+    });
+
+    return { filteredSpots: filtered, spotCounts: counts };
+  }, [activeDaySpots, activeCategory]);
 
   if (!tripData.days || tripData.days.length === 0 || !activeDay) return null;
 
@@ -477,73 +491,34 @@ ${JSON.stringify(inputData)}
               onClick={() => handleAddSpot(activeCategory)}
               className={cn(
                 "w-full sm:w-auto flex items-center justify-center px-6 py-4 sm:py-3 text-white rounded-2xl transition-all text-base sm:text-sm font-black shadow-lg",
-                activeCategory === SpotType.TRANSPORT ? "bg-orange-500 hover:bg-orange-600" :
-                  activeCategory === SpotType.STAY ? "bg-purple-500 hover:bg-purple-600" :
-                    activeCategory === SpotType.MEAL ? "bg-rose-500 hover:bg-rose-600" :
-                      "bg-blue-500 hover:bg-blue-600"
+                CATEGORY_THEMES[activeCategory]?.buttonColor || 'bg-blue-500'
               )}
             >
-              <Plus className="w-5 h-5 mr-1" /> 新增{activeCategory === SpotType.TRANSPORT ? '交通' : activeCategory === SpotType.STAY ? '住宿' : activeCategory === SpotType.MEAL ? '伙食' : '景點'}
+              <Plus className="w-5 h-5 mr-1" /> 新增{CATEGORY_THEMES[activeCategory]?.label || '項目'}
             </button>
           </div>
 
           <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 w-full gap-1">
-            <button
-              onClick={() => setActiveCategory(SpotType.SPOT)}
-              className={cn(
-                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
-                activeCategory === SpotType.SPOT ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              <MapPin className="w-4 h-4 shrink-0" />
-              <span className="hidden xs:inline">景點</span>
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                activeCategory === SpotType.SPOT ? "bg-blue-50 text-blue-500" : "bg-slate-200 text-slate-500"
-              )}>{groupSpots.length}</span>
-            </button>
-            <button
-              onClick={() => setActiveCategory(SpotType.TRANSPORT)}
-              className={cn(
-                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
-                activeCategory === SpotType.TRANSPORT ? "bg-white text-orange-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              <Car className="w-4 h-4 shrink-0" />
-              <span className="hidden xs:inline">交通</span>
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                activeCategory === SpotType.TRANSPORT ? "bg-orange-50 text-orange-500" : "bg-slate-200 text-slate-500"
-              )}>{groupTransport.length}</span>
-            </button>
-            <button
-              onClick={() => setActiveCategory(SpotType.STAY)}
-              className={cn(
-                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
-                activeCategory === SpotType.STAY ? "bg-white text-purple-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              <Bed className="w-4 h-4 shrink-0" />
-              <span className="hidden xs:inline">住宿</span>
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                activeCategory === SpotType.STAY ? "bg-purple-50 text-purple-500" : "bg-slate-200 text-slate-500"
-              )}>{groupStay.length}</span>
-            </button>
-            <button
-              onClick={() => setActiveCategory(SpotType.MEAL)}
-              className={cn(
-                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
-                activeCategory === SpotType.MEAL ? "bg-white text-rose-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              <Utensils className="w-4 h-4 shrink-0" />
-              <span className="hidden xs:inline">伙食</span>
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                activeCategory === SpotType.MEAL ? "bg-rose-50 text-rose-500" : "bg-slate-200 text-slate-500"
-              )}>{groupMeals.length}</span>
-            </button>
+            {(Object.entries(CATEGORY_THEMES) as [SpotType, typeof CATEGORY_THEMES[SpotType]][]).map(([type, theme]) => {
+              const Icon = theme.icon;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setActiveCategory(type)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
+                    activeCategory === type ? theme.tabActiveColor : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="hidden xs:inline">{theme.label}</span>
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full",
+                    activeCategory === type ? theme.bgColor + " " + theme.color : "bg-slate-200 text-slate-500"
+                  )}>{spotCounts[type]}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="min-h-[300px] animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -554,21 +529,11 @@ ${JSON.stringify(inputData)}
             ) : (
               <section>
                 <SortableContext
-                  items={
-                    activeCategory === SpotType.SPOT ? groupSpots.map(s => s.id) :
-                      activeCategory === SpotType.TRANSPORT ? groupTransport.map(s => s.id) :
-                        activeCategory === SpotType.STAY ? groupStay.map(s => s.id) :
-                          groupMeals.map(s => s.id)
-                  }
+                  items={filteredSpots.map(s => s.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-4">
-                    {(
-                      activeCategory === SpotType.SPOT ? groupSpots :
-                        activeCategory === SpotType.TRANSPORT ? groupTransport :
-                          activeCategory === SpotType.STAY ? groupStay :
-                            groupMeals
-                    ).map(spot => (
+                    {filteredSpots.map(spot => (
                       <SortableSpotItem
                         key={spot.id}
                         spot={spot}
@@ -577,25 +542,20 @@ ${JSON.stringify(inputData)}
                         onDelete={() => handleDeleteSpot(spot.id)}
                       />
                     ))}
-                    {(
-                      activeCategory === SpotType.SPOT ? groupSpots.length :
-                        activeCategory === SpotType.TRANSPORT ? groupTransport.length :
-                          activeCategory === SpotType.STAY ? groupStay.length :
-                            groupMeals.length
-                    ) === 0 && (
-                        <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
-                          {activeCategory === SpotType.SPOT ? <MapPin className="w-12 h-12 text-slate-200 mb-4" /> :
-                            activeCategory === SpotType.TRANSPORT ? <Car className="w-12 h-12 text-slate-200 mb-4" /> :
-                              activeCategory === SpotType.STAY ? <Bed className="w-12 h-12 text-slate-200 mb-4" /> :
-                                <Utensils className="w-12 h-12 text-slate-200 mb-4" />}
-                          <p className="text-slate-300 font-bold">
-                            {activeCategory === SpotType.SPOT ? '尚無景點行程，點擊上方按鈕新增' :
-                              activeCategory === SpotType.TRANSPORT ? '尚無交通紀錄，紀錄您的移動開銷' :
-                                activeCategory === SpotType.STAY ? '尚無住宿紀錄，紀錄休息地點與費用' :
-                                  '尚無伙食紀錄，紀錄美食地圖與花費'}
-                          </p>
-                        </div>
-                      )}
+                    {filteredSpots.length === 0 && (
+                      <div className="py-24 text-center border-4 border-dashed border-slate-50 rounded-[2.5rem] flex flex-col items-center">
+                        {(() => {
+                          const Icon = CATEGORY_THEMES[activeCategory]?.icon || MapPin;
+                          return <Icon className="w-12 h-12 text-slate-200 mb-4" />;
+                        })()}
+                        <p className="text-slate-300 font-bold">
+                          {activeCategory === SpotType.SPOT ? '尚無景點行程，點擊上方按鈕新增' :
+                            activeCategory === SpotType.TRANSPORT ? '尚無交通紀錄，紀錄您的移動開銷' :
+                              activeCategory === SpotType.STAY ? '尚無住宿紀錄，紀錄休息地點與費用' :
+                                '尚無伙食紀錄，紀錄美食地圖與花費'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </SortableContext>
               </section>
