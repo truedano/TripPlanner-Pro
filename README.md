@@ -1,7 +1,7 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.5.0)
+# 📝 TripPlanner Pro (v0.6.0)
 
 
 ### 您的 AI 智慧旅遊規劃專家
@@ -40,10 +40,15 @@
 - **多媒體紀錄**：支援拍照與相簿上傳，紀錄旅行的每一刻。
 - **預算精確追蹤**：智慧統計當日與總預算，支出類別清晰可見。
 
-### ☁️ 卓越的雲端同步引擎
+### ☁️ 卓越的雲端同步引擎 (Enhanced)
+- **一鍵式雲端備份器**：全新整合 Google Drive API，支援一鍵將行程資料備份至個人雲端空間。
 - **高效能並列同步**：採用非同步並列下載與批次處理技術，大幅提升雲端同步速度。
 - **API 安全護盾**：內建 API 異常偵測與金鑰管理機制，確保資料同步安全無虞。
-- **自動分頁處理**：完整支援 Google Drive 大量檔案存取，無上限管理您的所有旅行回憶。
+
+### 📄 專業 PDF 萬能匯出器 (New)
+- **三位一體匯出模式**：支援「回憶日誌」、「條列行程」、「財務報告」三種佈局樣式。
+- **精品排版工藝**：內建 Noto Sans TC 中文字型，確保 PDF 在任何裝置下都能呈現完美排版。
+- **完整資料保留**：自動匯出所有照片、筆記、座標與消費紀錄，輕鬆列印或離線分享。
 
 ---
 
@@ -95,6 +100,23 @@
 - **Mapping**: Leaflet, React Leaflet
 - **Icons**: Lucide React
 - **Utils**: clsx, tailwind-merge
+
+---
+
+## 🆕 v0.6.0 更新說明 (Universal PDF Export & Cloud Sync)
+- **PDF 萬能匯出引擎**：
+  - 全新開發 `TripPdfDocument` 下載組件，支援三種檢視模式（日誌、行程、財務）。
+  - 整合 `Noto Sans TC` 字型庫，完美解決中文字元顯示問題。
+  - 支援多媒體附件匯出，包含景點自選圖片之縮圖顯示。
+- **Google Drive 雲端備份器**：
+  - 在總結頁面新增「備份雲端」功能，將本地 IndexedDB 數據安全備份至 Google Drive。
+  - 支援自動處理備份檔案版本，防止行程資料遺漏。
+- **財務儀表板 (Finance Dashboard)**：
+  - 引入動態圓餅圖 (SVG) 可視化分析支出比例。
+  - 優化預算進度條，當支出超出預算時新增震動與紅色警告視覺提示。
+- **基礎設施升級**：
+  - 升級至 React 19 與 Vite 6，優化渲染效能。
+  - 導入 `@react-pdf/renderer` 進行高效能 PDF 生成。
 
 ---
 
