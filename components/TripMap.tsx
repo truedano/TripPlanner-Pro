@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -44,9 +44,52 @@ const MapUpdater: React.FC<{ spots: Spot[] }> = ({ spots }) => {
 };
 
 const TripMap: React.FC<Props> = ({ spots, activeSpotId }) => {
+    const [routeCoords, setRouteCoords] = useState<L.LatLngExpression[]>([]);
+    const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+
     const spotsWithCoords = spots.filter(s => s.lat !== undefined && s.lng !== undefined);
 
-    const polylineCoords = spotsWithCoords.map(s => [s.lat!, s.lng!] as L.LatLngExpression);
+    useEffect(() => {
+        const fetchRoute = async () => {
+            if (spotsWithCoords.length < 2) {
+                setRouteCoords([]);
+                return;
+            }
+
+            setIsLoadingRoute(true);
+            try {
+                // Construct OSRM API URL
+                // Format: lng,lat;lng,lat
+                const coordinates = spotsWithCoords
+                    .map(s => `${s.lng},${s.lat}`)
+                    .join(';');
+
+                const response = await fetch(
+                    `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+                );
+                const data = await response.json();
+
+                if (data.code === 'Ok' && data.routes && data.routes[0]) {
+                    // OSRM returns [lng, lat], Leaflet needs [lat, lng]
+                    const coords = data.routes[0].geometry.coordinates.map((coord: [number, number]) =>
+                        [coord[1], coord[0]] as L.LatLngExpression
+                    );
+                    setRouteCoords(coords);
+                } else {
+                    // Fallback to straight lines if API fails
+                    setRouteCoords(spotsWithCoords.map(s => [s.lat!, s.lng!] as L.LatLngExpression));
+                }
+            } catch (error) {
+                console.error('Failed to fetch route:', error);
+                // Fallback to straight lines
+                setRouteCoords(spotsWithCoords.map(s => [s.lat!, s.lng!] as L.LatLngExpression));
+            } finally {
+                setIsLoadingRoute(false);
+            }
+        };
+
+        fetchRoute();
+    }, [spots]);
 
     const handleOpenNavigation = (spot: Spot) => {
         const url = `https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}`;
@@ -55,6 +98,12 @@ const TripMap: React.FC<Props> = ({ spots, activeSpotId }) => {
 
     return (
         <div className="w-full h-full min-h-[400px] rounded-[2rem] overflow-hidden shadow-inner border border-slate-100 relative">
+            {isLoadingRoute && (
+                <div className="absolute top-4 right-4 z-[1000] bg-white/80 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-slate-200 flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-bold text-slate-600">正在規劃最佳路線...</span>
+                </div>
+            )}
             <MapContainer
                 center={[35.6895, 139.6917]} // Default to Tokyo if no spots
                 zoom={13}
@@ -90,13 +139,13 @@ const TripMap: React.FC<Props> = ({ spots, activeSpotId }) => {
                     </Marker>
                 ))}
 
-                {polylineCoords.length > 1 && (
+                {routeCoords.length > 1 && (
                     <Polyline
-                        positions={polylineCoords}
+                        positions={routeCoords}
                         color="#3b82f6"
-                        weight={4}
-                        opacity={0.6}
-                        dashArray="10, 10"
+                        weight={5}
+                        opacity={0.8}
+                        lineJoin="round"
                     />
                 )}
 
