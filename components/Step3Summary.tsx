@@ -145,9 +145,9 @@ export const Step3Summary: React.FC<Props> = ({ tripData, showAlert }) => {
               <Wallet className="w-6 h-6 text-emerald-100 mt-4" />
             </div>
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center text-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">支出狀態</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">預算結餘</span>
               <span className={`text-4xl font-serif font-black italic ${isBudgetSet && budget - totalActual < 0 ? 'text-rose-500' : 'text-slate-800'}`}>
-                {isBudgetSet ? `${currency} ${(budget - totalActual).toLocaleString()}` : '記錄中'}
+                {isBudgetSet ? `${currency} ${(budget - totalActual).toLocaleString()}` : '未設定預算'}
               </span>
               <BarChart3 className="w-6 h-6 text-slate-100 mt-4" />
             </div>
