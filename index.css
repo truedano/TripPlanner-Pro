@@ -58,3 +58,27 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   /* slate-100 */
   transform: scale(1.1);
 }
+
+@utility status-card {
+  @apply p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm;
+}
+
+@utility status-card-emerald {
+  @apply bg-emerald-50/50 border-emerald-100 shadow-emerald-50;
+}
+
+@utility status-card-slate {
+  @apply bg-slate-50 border-slate-100;
+}
+
+@utility icon-box {
+  @apply w-14 h-14 rounded-2xl flex items-center justify-center transition-all;
+}
+
+@utility icon-box-emerald {
+  @apply bg-emerald-500 text-white shadow-lg shadow-emerald-200;
+}
+
+@utility icon-box-slate {
+  @apply bg-slate-200 text-slate-400;
+}

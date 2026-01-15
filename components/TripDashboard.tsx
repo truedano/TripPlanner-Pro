@@ -3,6 +3,8 @@ import { TripData } from '../types';
 import { Plus, MapPin, Calendar, Trash2, ChevronRight, Luggage, Heart, Download, Upload, CloudUpload, Loader2, CloudCheck, Cloud } from 'lucide-react';
 import { ModalType } from './ModernModal';
 import { saveTripToDrive } from '../utils/googleDrive';
+import { cn } from '../utils/classnames';
+import { formatDate } from '../utils/date';
 
 interface Props {
   trips: TripData[];
@@ -142,9 +144,15 @@ export const TripDashboard: React.FC<Props> = ({
 
       {/* Cloud Sync Status Card */}
       <div className="mb-12 no-print">
-        <div className={`p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row items-center justify-between gap-6 ${cloudStatus === 'connected' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+        <div className={cn(
+          "status-card",
+          cloudStatus === 'connected' ? "status-card-emerald" : "status-card-slate"
+        )}>
           <div className="flex items-center space-x-5 text-center md:text-left">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${cloudStatus === 'connected' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-200 text-slate-400'}`}>
+            <div className={cn(
+              "icon-box",
+              cloudStatus === 'connected' ? "icon-box-emerald" : "icon-box-slate"
+            )}>
               {cloudStatus === 'connecting' ? <Loader2 className="w-6 h-6 animate-spin" /> : <CloudUpload className="w-6 h-6" />}
             </div>
             <div>
@@ -297,7 +305,7 @@ export const TripDashboard: React.FC<Props> = ({
                   <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
                     <div className="flex flex-col">
                       <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest leading-none mb-1">
-                        JOURNAL UPDATED {new Date(trip.lastModified).toLocaleDateString()}
+                        JOURNAL UPDATED {formatDate(trip.lastModified)}
                       </span>
                       {cloudStatus === 'connected' && (
                         <div className="flex items-center">
