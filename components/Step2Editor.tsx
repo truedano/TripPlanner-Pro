@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { cn } from '../utils/classnames';
 import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
 import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle, Map as MapIcon, List, Route } from 'lucide-react';
@@ -194,7 +194,7 @@ ${JSON.stringify(inputData)}
   };
 
   // Sync Logic
-  const syncSpotToParent = (updatedSpot: Spot) => {
+  const syncSpotToParent = useCallback((updatedSpot: Spot) => {
     const updatedDays = [...tripData.days];
     const spots = [...updatedDays[activeDayIndex].spots];
     const index = spots.findIndex(s => s.id === updatedSpot.id);
@@ -203,22 +203,27 @@ ${JSON.stringify(inputData)}
       updatedDays[activeDayIndex] = { ...updatedDays[activeDayIndex], spots: spots };
       onUpdate({ days: updatedDays });
     }
-  };
+  }, [tripData.days, activeDayIndex, onUpdate]);
 
-  const handleSpotChange = (updates: Partial<Spot>) => {
-    if (!editingSpot) return;
-    const updated = { ...editingSpot, ...updates };
-    setEditingSpot(updated);
-    syncSpotToParent(updated);
-  };
+  const handleSpotChange = useCallback((updates: Partial<Spot>) => {
+    setEditingSpot(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updates };
+      syncSpotToParent(updated);
+      return updated;
+    });
+  }, [syncSpotToParent]);
 
-  const updateImages = (newImages: IdentifiableSpotImage[]) => {
+  const updateImages = useCallback((newImages: IdentifiableSpotImage[]) => {
     setEditingImages(newImages);
-    if (editingSpot) {
+    setEditingSpot(prev => {
+      if (!prev) return null;
       const cleanImages = newImages.map(({ internalId, ...rest }) => rest);
-      handleSpotChange({ images: cleanImages });
-    }
-  };
+      const updated = { ...prev, images: cleanImages };
+      syncSpotToParent(updated);
+      return updated;
+    });
+  }, [syncSpotToParent]);
 
   // Event handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -263,7 +268,7 @@ ${JSON.stringify(inputData)}
     }
   };
 
-  const handleImageDragEnd = (event: DragEndEvent) => {
+  const handleImageDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = editingImages.findIndex((i) => i.internalId === active.id);
@@ -271,7 +276,7 @@ ${JSON.stringify(inputData)}
       const reordered = arrayMove<IdentifiableSpotImage>(editingImages, oldIndex, newIndex);
       updateImages(reordered);
     }
-  };
+  }, [editingImages, updateImages]);
 
   const handleAddSpot = (type: SpotType = SpotType.SPOT) => {
     const isToday = new Date().toISOString().split('T')[0] === activeDay.date;
@@ -296,7 +301,7 @@ ${JSON.stringify(inputData)}
     setShowModal(true);
   };
 
-  const handleEditSpot = (spot: Spot) => {
+  const handleEditSpot = useCallback((spot: Spot) => {
     setEditingSpot({
       ...spot,
       expenses: spot.expenses || [],
@@ -304,11 +309,11 @@ ${JSON.stringify(inputData)}
     });
     setEditingImages((spot.images || []).map(img => ({ ...img, internalId: crypto.randomUUID() })));
     setShowModal(true);
-  };
+  }, []);
 
-  const handleDeleteSpot = (id: string) => {
+  const handleDeleteSpot = useCallback((id: string) => {
     setDeleteId(id);
-  };
+  }, []);
 
   const confirmDelete = () => {
     if (!deleteId) return;
@@ -319,8 +324,8 @@ ${JSON.stringify(inputData)}
     setDeleteId(null);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !editingSpot) return;
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
     const inputElement = e.target;
     setIsProcessingImage(true);
     try {
@@ -332,43 +337,41 @@ ${JSON.stringify(inputData)}
       setIsProcessingImage(false);
       inputElement.value = '';
     }
-  };
+  }, [editingImages, updateImages]);
 
-  const addExpenseItem = () => {
-    if (!editingSpot) return;
+  const addExpenseItem = useCallback(() => {
     const newItem: ExpenseItem = { id: crypto.randomUUID(), name: '', amount: 0 };
-    handleSpotChange({ expenses: [...(editingSpot.expenses || []), newItem] });
-  };
+    handleSpotChange({ expenses: [...(editingSpot?.expenses || []), newItem] });
+  }, [editingSpot?.expenses, handleSpotChange]);
 
-  const removeExpenseItem = (id: string) => {
+  const removeExpenseItem = useCallback((id: string) => {
     if (!editingSpot) return;
     handleSpotChange({ expenses: editingSpot.expenses.filter(e => e.id !== id) });
-  };
+  }, [editingSpot, handleSpotChange]);
 
-  const updateExpenseItem = (id: string, updates: Partial<{ name: string, amount: number }>) => {
+  const updateExpenseItem = useCallback((id: string, updates: Partial<{ name: string, amount: number }>) => {
     if (!editingSpot) return;
     handleSpotChange({
       expenses: editingSpot.expenses.map(e => e.id === id ? { ...e, ...updates } : e)
     });
-  };
+  }, [editingSpot, handleSpotChange]);
 
-  const addNoteItem = () => {
-    if (!editingSpot) return;
+  const addNoteItem = useCallback(() => {
     const newItem = { id: crypto.randomUUID(), content: '' };
-    handleSpotChange({ notes: [...(editingSpot.notes || []), newItem] });
-  };
+    handleSpotChange({ notes: [...(editingSpot?.notes || []), newItem] });
+  }, [editingSpot?.notes, handleSpotChange]);
 
-  const removeNoteItem = (id: string) => {
+  const removeNoteItem = useCallback((id: string) => {
     if (!editingSpot) return;
     handleSpotChange({ notes: editingSpot.notes.filter(n => n.id !== id) });
-  };
+  }, [editingSpot, handleSpotChange]);
 
-  const updateNoteItem = (id: string, content: string) => {
+  const updateNoteItem = useCallback((id: string, content: string) => {
     if (!editingSpot) return;
     handleSpotChange({
       notes: editingSpot.notes.map(n => n.id === id ? { ...n, content } : n)
     });
-  };
+  }, [editingSpot, handleSpotChange]);
 
   const activeSpotData = activeDragSpotId ? activeDay.spots.find(s => s.id === activeDragSpotId) : null;
 
