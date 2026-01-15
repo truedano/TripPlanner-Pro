@@ -9,6 +9,7 @@ import { compressImage } from '../utils/image';
 import { DroppableDayTab } from './DroppableDayTab';
 import { SortableSpotItem } from './SortableSpotItem';
 import { SpotEditModal } from './SpotEditModal';
+import { CopySpotModal } from './CopySpotModal';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ApiKeyManager, GEMINI_MODEL } from '../utils/apiKeyManager';
 import { ModalType } from './ModernModal';
@@ -52,6 +53,7 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [dismissedHintDay, setDismissedHintDay] = useState<number[]>([]);
   const [showMap, setShowMap] = useState(false);
+  const [spotToCopy, setSpotToCopy] = useState<Spot | null>(null);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -325,6 +327,30 @@ ${JSON.stringify(inputData)}
     setShowModal(true);
   }, []);
 
+  const handleConfirmCopy = (targetDayIndices: number[]) => {
+    if (!spotToCopy) return;
+
+    const newDays = [...tripData.days];
+    targetDayIndices.forEach(idx => {
+      const newSpot: Spot = {
+        ...spotToCopy,
+        id: crypto.randomUUID(),
+        // 複製時通常保持一致的筆記與花費
+        notes: (spotToCopy.notes || []).map(n => ({ ...n, id: crypto.randomUUID() })),
+        expenses: (spotToCopy.expenses || []).map(e => ({ ...e, id: crypto.randomUUID() })),
+        images: [...(spotToCopy.images || [])] // 圖片是引用 URL，可以直接複製
+      };
+      newDays[idx] = {
+        ...newDays[idx],
+        spots: [...newDays[idx].spots, newSpot]
+      };
+    });
+
+    onUpdate({ days: newDays });
+    setSpotToCopy(null);
+    showAlert('複製成功', `已將住宿資料複製到 ${targetDayIndices.length} 個日期。`, 'success');
+  };
+
   const handleDeleteSpot = useCallback((id: string) => {
     setDeleteId(id);
   }, []);
@@ -540,6 +566,7 @@ ${JSON.stringify(inputData)}
                         currency={tripData.currency}
                         onClick={() => handleEditSpot(spot)}
                         onDelete={() => handleDeleteSpot(spot.id)}
+                        onCopy={() => setSpotToCopy(spot)}
                       />
                     ))}
                     {filteredSpots.length === 0 && (
@@ -603,6 +630,17 @@ ${JSON.stringify(inputData)}
           getCurrentTime={getCurrentTime}
           imageSensors={imageSensors}
           handleImageDragEnd={handleImageDragEnd}
+        />
+      )}
+
+      {spotToCopy && (
+        <CopySpotModal
+          isOpen={!!spotToCopy}
+          tripData={tripData}
+          spot={spotToCopy}
+          currentDayIndex={activeDayIndex}
+          onClose={() => setSpotToCopy(null)}
+          onConfirm={handleConfirmCopy}
         />
       )}
 

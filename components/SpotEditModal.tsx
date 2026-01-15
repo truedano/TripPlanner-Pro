@@ -213,20 +213,18 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
                                     <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">開始時間 (24H)</label>
                                     <input
                                         type="text"
-                                        placeholder="HH:mm"
+                                        placeholder="00:00"
                                         maxLength={5}
                                         value={spot.startTime || ''}
                                         onChange={e => {
                                             let val = e.target.value.replace(/[^0-9]/g, '');
-                                            if (val.length >= 3) {
-                                                val = val.slice(0, 2) + ':' + val.slice(2, 4);
-                                            }
+                                            if (val.length >= 3) val = val.slice(0, 2) + ':' + val.slice(2, 4);
                                             const parts = val.split(':');
                                             if (parts[0] && parseInt(parts[0]) > 23) return;
                                             if (parts[1] && parseInt(parts[1]) > 59) return;
                                             onSpotChange({ startTime: val });
                                         }}
-                                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-28 placeholder:text-slate-300 relative z-10"
+                                        className="w-full pl-4 pr-20 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none font-medium tabular-nums text-slate-700 placeholder:text-slate-300 relative z-10 transition-all"
                                     />
                                     <input
                                         type="time"
@@ -273,20 +271,18 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
                                     <label className="absolute -top-6 left-0 text-[10px] font-black text-slate-400 uppercase tracking-widest">結束時間 (24H)</label>
                                     <input
                                         type="text"
-                                        placeholder="HH:mm"
+                                        placeholder="00:00"
                                         maxLength={5}
                                         value={spot.endTime || ''}
                                         onChange={e => {
                                             let val = e.target.value.replace(/[^0-9]/g, '');
-                                            if (val.length >= 3) {
-                                                val = val.slice(0, 2) + ':' + val.slice(2, 4);
-                                            }
+                                            if (val.length >= 3) val = val.slice(0, 2) + ':' + val.slice(2, 4);
                                             const parts = val.split(':');
                                             if (parts[0] && parseInt(parts[0]) > 23) return;
                                             if (parts[1] && parseInt(parts[1]) > 59) return;
                                             onSpotChange({ endTime: val });
                                         }}
-                                        className="w-full px-5 py-3 rounded-2xl bg-slate-50 font-bold text-slate-700 pr-28 placeholder:text-slate-300 relative z-10"
+                                        className="w-full pl-4 pr-20 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none font-medium tabular-nums text-slate-700 placeholder:text-slate-300 relative z-10 transition-all"
                                     />
                                     <input
                                         type="time"
@@ -347,31 +343,39 @@ export const SpotEditModal: React.FC<SpotEditModalProps> = ({
                                 </div>
                                 <div className="space-y-3">
                                     {spot.expenses?.map((exp) => (
-                                        <div key={exp.id} className="group flex items-center space-x-3 p-4 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition-all animate-in slide-in-from-left-2 duration-200 shadow-sm hover:shadow-md">
-                                            <input
-                                                type="text"
-                                                placeholder="支出項目名稱..."
-                                                value={exp.name}
-                                                onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
-                                                className="flex-grow bg-transparent text-sm font-black text-slate-700 outline-none placeholder:text-slate-300"
-                                            />
-                                            <div className="flex items-center space-x-2 border-l border-slate-100 pl-4">
+                                        <div key={exp.id} className="group flex items-center p-2 sm:p-3 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition-all animate-in slide-in-from-left-2 duration-200 shadow-sm hover:shadow-md h-14">
+                                            {/* 名稱部分：自動填滿 */}
+                                            <div className="flex-grow min-w-0 px-2">
                                                 <input
-                                                    type="number"
-                                                    placeholder="0"
-                                                    value={exp.amount || ''}
-                                                    onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
-                                                    className="w-20 bg-transparent text-base font-black text-emerald-600 outline-none text-right"
+                                                    type="text"
+                                                    placeholder="項目名稱..."
+                                                    value={exp.name}
+                                                    onChange={e => updateExpenseItem(exp.id, { name: e.target.value })}
+                                                    className="w-full bg-transparent text-sm font-black text-slate-700 outline-none placeholder:text-slate-200 truncate"
                                                 />
-                                                <span className="text-[10px] font-black text-emerald-300">{currency}</span>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeExpenseItem(exp.id)}
-                                                className="p-1 px-2 text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+
+                                            {/* 金額與操作部分：固定靠右 */}
+                                            <div className="flex items-center shrink-0 border-l border-slate-100 ml-1 pl-3">
+                                                <div className="flex items-center bg-slate-50/50 rounded-xl px-3 py-1.5 transition-all group-hover:bg-slate-50">
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0"
+                                                        value={exp.amount || ''}
+                                                        onChange={e => updateExpenseItem(exp.id, { amount: Number(e.target.value) })}
+                                                        className="w-16 bg-transparent text-sm font-black text-emerald-600 outline-none text-right"
+                                                    />
+                                                    <span className="ml-1.5 text-[9px] font-black text-emerald-400/70 uppercase shrink-0">{currency}</span>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeExpenseItem(exp.id)}
+                                                    className="ml-1 p-2 text-slate-200 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 active:scale-90"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                     {(!spot.expenses || spot.expenses.length === 0) && (
