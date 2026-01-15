@@ -1,7 +1,7 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.4.1)
+# 📝 TripPlanner Pro (v0.4.2)
 
 
 ### 您的 AI 智慧旅遊規劃專家
@@ -94,6 +94,16 @@
 - **Mapping**: Leaflet, React Leaflet
 - **Icons**: Lucide React
 - **Utils**: clsx, tailwind-merge
+
+---
+
+## 🆕 v0.4.2 更新說明 (UX & Code Architecture Optimization)
+- **DnD 體驗優化**：重構拖拽碰撞偵測邏輯，將 `closestCenter` 改為 `pointerWithin`，顯著提升「跨天移動」景點時的分頁目標偵測靈敏度，修復無法移回前一天的問題。
+- **架構簡化 (Code Simplification)**：
+  - 建立全域 `utils/constants.ts` 集中管理景點分類的主題（圖示、標籤、Tailwind 色彩、SVG 顏色代碼）。
+  - 徹底簡化 `Step2Editor` 與 `Step3Summary` 中的冗餘條件判斷邏輯，提升代碼可維護性。
+- **渲染安全性強化**：在 `Step2Editor` 導入類型安全保護機制 (Optional Chaining & Fallback)，避免因異常數據或狀態同步延遲導致組件崩潰。
+- **資料處理效能優化**：合併 `Step2Editor` 內部的多個過濾運算為單次遍歷，減少 React 渲染期間的運算開銷。
 
 ---
 
