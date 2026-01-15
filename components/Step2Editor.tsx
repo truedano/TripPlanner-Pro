@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { cn } from '../utils/classnames';
 import { TripData, Spot, SpotType, ExpenseItem, IdentifiableSpotImage } from '../types';
 import { Plus, MapPin, X, GripVertical, Trash2, Car, Bed, Utensils, Sparkles, Loader2, Navigation, AlertCircle, Map as MapIcon, List, Route } from 'lucide-react';
 import { ModernModal } from './ModernModal';
@@ -445,7 +446,10 @@ ${JSON.stringify(inputData)}
                   onClick={handleOptimizeRoute}
                   disabled={isOptimizing}
                   title="AI 路線優化"
-                  className={`flex p-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50 ${isOptimizing ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm'}`}
+                  className={cn(
+                    "flex p-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50",
+                    isOptimizing ? "bg-blue-100 text-blue-600" : "text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm"
+                  )}
                 >
                   {isOptimizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Route className="w-5 h-5" />}
                 </button>
@@ -454,10 +458,12 @@ ${JSON.stringify(inputData)}
                 <button
                   onClick={() => setShowMap(!showMap)}
                   title={showMap ? "切換至列表" : "切換至地圖"}
-                  className={`flex p-2.5 rounded-xl transition-all active:scale-95 ${showMap
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm'
-                    }`}
+                  className={cn(
+                    "flex p-2.5 rounded-xl transition-all active:scale-95",
+                    showMap
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm"
+                  )}
                 >
                   {showMap ? <List className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
                 </button>
@@ -465,11 +471,13 @@ ${JSON.stringify(inputData)}
             </div>
             <button
               onClick={() => handleAddSpot(activeCategory)}
-              className={`w-full sm:w-auto flex items-center justify-center px-6 py-4 sm:py-3 text-white rounded-2xl transition-all text-base sm:text-sm font-black shadow-lg ${activeCategory === SpotType.TRANSPORT ? 'bg-orange-500 hover:bg-orange-600' :
-                activeCategory === SpotType.STAY ? 'bg-purple-500 hover:bg-purple-600' :
-                  activeCategory === SpotType.MEAL ? 'bg-rose-500 hover:bg-rose-600' :
-                    'bg-blue-500 hover:bg-blue-600'
-                }`}
+              className={cn(
+                "w-full sm:w-auto flex items-center justify-center px-6 py-4 sm:py-3 text-white rounded-2xl transition-all text-base sm:text-sm font-black shadow-lg",
+                activeCategory === SpotType.TRANSPORT ? "bg-orange-500 hover:bg-orange-600" :
+                  activeCategory === SpotType.STAY ? "bg-purple-500 hover:bg-purple-600" :
+                    activeCategory === SpotType.MEAL ? "bg-rose-500 hover:bg-rose-600" :
+                      "bg-blue-500 hover:bg-blue-600"
+              )}
             >
               <Plus className="w-5 h-5 mr-1" /> 新增{activeCategory === SpotType.TRANSPORT ? '交通' : activeCategory === SpotType.STAY ? '住宿' : activeCategory === SpotType.MEAL ? '伙食' : '景點'}
             </button>
@@ -478,39 +486,59 @@ ${JSON.stringify(inputData)}
           <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 w-full gap-1">
             <button
               onClick={() => setActiveCategory(SpotType.SPOT)}
-              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.SPOT ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                }`}
+              className={cn(
+                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
+                activeCategory === SpotType.SPOT ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+              )}
             >
               <MapPin className="w-4 h-4 shrink-0" />
               <span className="hidden xs:inline">景點</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.SPOT ? 'bg-blue-50 text-blue-500' : 'bg-slate-200 text-slate-500'}`}>{groupSpots.length}</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full",
+                activeCategory === SpotType.SPOT ? "bg-blue-50 text-blue-500" : "bg-slate-200 text-slate-500"
+              )}>{groupSpots.length}</span>
             </button>
             <button
               onClick={() => setActiveCategory(SpotType.TRANSPORT)}
-              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.TRANSPORT ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                }`}
+              className={cn(
+                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
+                activeCategory === SpotType.TRANSPORT ? "bg-white text-orange-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+              )}
             >
               <Car className="w-4 h-4 shrink-0" />
               <span className="hidden xs:inline">交通</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.TRANSPORT ? 'bg-orange-50 text-orange-500' : 'bg-slate-200 text-slate-500'}`}>{groupTransport.length}</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full",
+                activeCategory === SpotType.TRANSPORT ? "bg-orange-50 text-orange-500" : "bg-slate-200 text-slate-500"
+              )}>{groupTransport.length}</span>
             </button>
             <button
               onClick={() => setActiveCategory(SpotType.STAY)}
-              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.STAY ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                }`}
+              className={cn(
+                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
+                activeCategory === SpotType.STAY ? "bg-white text-purple-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+              )}
             >
               <Bed className="w-4 h-4 shrink-0" />
               <span className="hidden xs:inline">住宿</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.STAY ? 'bg-purple-50 text-purple-500' : 'bg-slate-200 text-slate-500'}`}>{groupStay.length}</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full",
+                activeCategory === SpotType.STAY ? "bg-purple-50 text-purple-500" : "bg-slate-200 text-slate-500"
+              )}>{groupStay.length}</span>
             </button>
             <button
               onClick={() => setActiveCategory(SpotType.MEAL)}
-              className={`flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all ${activeCategory === SpotType.MEAL ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                }`}
+              className={cn(
+                "flex-1 flex items-center justify-center space-x-1.5 py-3 rounded-xl font-black text-xs sm:text-sm transition-all",
+                activeCategory === SpotType.MEAL ? "bg-white text-rose-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+              )}
             >
               <Utensils className="w-4 h-4 shrink-0" />
               <span className="hidden xs:inline">伙食</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === SpotType.MEAL ? 'bg-rose-50 text-rose-500' : 'bg-slate-200 text-slate-500'}`}>{groupMeals.length}</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full",
+                activeCategory === SpotType.MEAL ? "bg-rose-50 text-rose-500" : "bg-slate-200 text-slate-500"
+              )}>{groupMeals.length}</span>
             </button>
           </div>
 

@@ -17,13 +17,15 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/leaflet": "^1.9.21",
     "buffer": "^6.0.3",
+    "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
     "dexie": "^4.0.11",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
