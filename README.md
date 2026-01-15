@@ -1,7 +1,7 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.4.0)
+# 📝 TripPlanner Pro (v0.4.1)
 
 
 ### 您的 AI 智慧旅遊規劃專家
@@ -93,6 +93,20 @@
 - **DB & Storage**: Dexie.js (IndexedDB)
 - **Mapping**: Leaflet, React Leaflet
 - **Icons**: Lucide React
+- **Utils**: clsx, tailwind-merge
+
+---
+
+## 🆕 v0.4.1 更新說明 (Performance & Dx Optimization)
+- **基礎設施升級**：整合 `clsx` 與 `tailwind-merge`，建立統一的類名管理工具 `cn()`。
+- **渲染效能解析**：對 `Step2Editor` 進行深度重構，導入 `useMemo` 快取複雜過濾運算，並使用 `useCallback` 穩定函數引用，大幅減少不必要的子組件重繪。
+- **UI 樣式模組化**：提取常用的 Tailwind 複合樣式為 `@utility` 類別，降低 JSX 冗餘度並維護主題一致性。
+- **API 安全性強化**：
+  - API Key 管理模組新增顯示/隱藏獨立狀態切換，防止敏感資訊洩漏。
+  - 新增 API 驗證超時 (Timeout) 機制，優化網路不佳時的使用者體驗。
+- **全域工具集**：建立 `utils/date.ts` 統一處理日期格式化，為未來的多語言支援打下基礎。
+
+---
 
 ---
 <div align="center">
