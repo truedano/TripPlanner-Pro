@@ -13,7 +13,8 @@ interface Props {
 export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
     const [keys, setKeys] = useState<string[]>([]);
     const [newKey, setNewKey] = useState('');
-    const [showKey, setShowKey] = useState(false);
+    const [showSavedKeys, setShowSavedKeys] = useState(false);
+    const [showNewKey, setShowNewKey] = useState(false);
     const [error, setError] = useState('');
     const [isValidating, setIsValidating] = useState(false);
 
@@ -144,7 +145,19 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
                         </a>
 
                         <div className="space-y-3">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">已儲存的 API Keys ({keys.length})</label>
+                            <div className="flex items-center justify-between ml-1">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">已儲存的 API Keys ({keys.length})</label>
+                                {keys.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSavedKeys(!showSavedKeys)}
+                                        className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors flex items-center"
+                                    >
+                                        {showSavedKeys ? <EyeOff className="w-3 h-3 mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
+                                        {showSavedKeys ? '全部隱藏' : '全部顯示'}
+                                    </button>
+                                )}
+                            </div>
                             {keys.length === 0 ? (
                                 <div className="text-center py-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
                                     <p className="text-xs font-bold text-slate-300">尚未新增任何 API Key</p>
@@ -158,7 +171,7 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
                                                     {idx + 1}
                                                 </div>
                                                 <code className="text-xs font-mono font-bold text-slate-500 truncate">
-                                                    {showKey ? k : `${k.slice(0, 8)}••••••••${k.slice(-4)}`}
+                                                    {showSavedKeys ? k : `${k.slice(0, 8)}••••••••${k.slice(-4)}`}
                                                 </code>
                                             </div>
                                             <button
@@ -178,7 +191,7 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
                             <div className="flex space-x-2">
                                 <div className="relative flex-1">
                                     <input
-                                        type={showKey ? "text" : "password"}
+                                        type={showNewKey ? "text" : "password"}
                                         value={newKey}
                                         onChange={(e) => setNewKey(e.target.value)}
                                         placeholder="貼上新的 API Key..."
@@ -186,10 +199,10 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setShowKey(!showKey)}
+                                        onClick={() => setShowNewKey(!showNewKey)}
                                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
                                     >
-                                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        {showNewKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
                                 </div>
                                 <button
