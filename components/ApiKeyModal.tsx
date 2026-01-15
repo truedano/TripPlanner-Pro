@@ -50,14 +50,23 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: trimmed });
+
+            // 建立 10 秒超時機制
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT')), 10000)
+            );
+
             // 嘗試進行一次極小規模的呼叫以驗證 Key 的合法性
-            await ai.models.generateContent({
+            const validationPromise = ai.models.generateContent({
                 model: GEMINI_MODEL,
                 contents: 'Ping',
                 config: {
                     maxOutputTokens: 1
                 }
             });
+
+            // 競爭賽：超時或完成
+            await Promise.race([validationPromise, timeoutPromise]);
 
             const updatedKeys = [...keys, trimmed];
             setKeys(updatedKeys);
@@ -69,7 +78,9 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
             const errMsg = err?.message || err?.statusText || '';
             const status = err?.status;
 
-            if (status === 401 || errMsg.includes('401') || errMsg.toLowerCase().includes('not valid')) {
+            if (err.message === 'TIMEOUT') {
+                setError('驗證超時，請檢查您的網路連線是否穩定。');
+            } else if (status === 401 || errMsg.includes('401') || errMsg.toLowerCase().includes('not valid')) {
                 setError('無效的 API Key，請檢查是否輸入正確。');
             } else if (status === 403 || errMsg.includes('403')) {
                 setError('此 API Key 無權限使用該模型，或已遭停用。');
