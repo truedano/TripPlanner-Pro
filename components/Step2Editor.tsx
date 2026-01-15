@@ -14,7 +14,7 @@ import { ModalType } from './ModernModal';
 import TripMap from './TripMap';
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
@@ -382,7 +382,7 @@ ${JSON.stringify(inputData)}
     <div className="animate-in fade-in duration-500">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
