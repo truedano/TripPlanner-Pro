@@ -1,6 +1,7 @@
 import CryptoJS from 'crypto-js';
 
 export const trip_journal_gemini_api_key = 'trip_journal_gemini_api_key';
+export const GEMINI_MODEL = 'gemini-3-flash-preview';
 const SYSTEM_SECRET = 'trip_planner_pro_secure_v1_system_key';
 
 interface StoredApiKey {

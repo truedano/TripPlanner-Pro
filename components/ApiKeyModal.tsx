@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Key, X, ExternalLink, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { ApiKeyManager } from '../utils/apiKeyManager';
+import { Key, X, ExternalLink, CheckCircle2, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
+import { ApiKeyManager, GEMINI_MODEL } from '../utils/apiKeyManager';
 import { logoutGoogle } from '../utils/googleDrive';
 
 interface Props {
@@ -13,6 +14,7 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
     const [key, setKey] = useState('');
     const [showKey, setShowKey] = useState(false);
     const [error, setError] = useState('');
+    const [isValidating, setIsValidating] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -29,15 +31,46 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!key.trim()) {
             setError('請輸入有效的 API Key');
             return;
         }
-        ApiKeyManager.save(key);
+
+        setIsValidating(true);
         setError('');
-        onSave();
-        onClose();
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: key.trim() });
+            // 嘗試進行一次極小規模的呼叫以驗證 Key 的合法性
+            await ai.models.generateContent({
+                model: GEMINI_MODEL,
+                contents: 'Ping',
+                config: {
+                    maxOutputTokens: 1
+                }
+            });
+
+            ApiKeyManager.save(key);
+            onSave();
+            onClose();
+        } catch (err: any) {
+            console.error('API Key 驗證失敗:', err);
+            const errMsg = err?.message || err?.statusText || '';
+            const status = err?.status;
+
+            if (status === 401 || errMsg.includes('401') || errMsg.toLowerCase().includes('not valid')) {
+                setError('無效的 API Key，請檢查是否輸入正確。');
+            } else if (status === 403 || errMsg.includes('403')) {
+                setError('此 API Key 無權限使用該模型，或已遭停用。');
+            } else if (status === 429 || errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+                setError('API 使用頻率已達上限，請稍後再試。');
+            } else {
+                setError('驗證時發生未知錯誤，請檢查網路連線或 Key 是否正確。');
+            }
+        } finally {
+            setIsValidating(false);
+        }
     };
 
     const handleClear = () => {
@@ -135,10 +168,15 @@ export const ApiKeyModal: React.FC<Props> = ({ isOpen, onClose, onSave }) => {
                         )}
                         <button
                             onClick={handleSave}
-                            className="flex-1 flex items-center justify-center space-x-2 bg-slate-900 text-white py-3.5 rounded-xl font-black text-sm hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
+                            disabled={isValidating}
+                            className={`flex-1 flex items-center justify-center space-x-2 bg-slate-900 text-white py-3.5 rounded-xl font-black text-sm hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>{key ? '儲存並更新' : '確認儲存'}</span>
+                            {isValidating ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <CheckCircle2 className="w-4 h-4" />
+                            )}
+                            <span>{isValidating ? '驗證中...' : (key ? '儲存並更新' : '確認儲存')}</span>
                         </button>
                     </div>
                 </div>

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { TripData, DayPlan, ExpenseCategory, SpotType } from '../types';
 import { CalendarDays, Type as TypeIcon, Sparkles, Loader2, ArrowRight, Wallet, Coins, MessageSquareQuote, Info, Save, Zap } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
-import { ApiKeyManager } from '../utils/apiKeyManager';
+import { ApiKeyManager, GEMINI_MODEL } from '../utils/apiKeyManager';
 import { ModalType } from './ModernModal';
 
 interface Props {
@@ -95,7 +95,7 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
   <trip_name>${safeName}</trip_name>`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: GEMINI_MODEL,
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

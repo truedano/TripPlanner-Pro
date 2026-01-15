@@ -8,7 +8,7 @@ import { DroppableDayTab } from './DroppableDayTab';
 import { SortableSpotItem } from './SortableSpotItem';
 import { SpotEditModal } from './SpotEditModal';
 import { GoogleGenAI, Type } from '@google/genai';
-import { ApiKeyManager } from '../utils/apiKeyManager';
+import { ApiKeyManager, GEMINI_MODEL } from '../utils/apiKeyManager';
 import { ModalType } from './ModernModal';
 import TripMap from './TripMap';
 import {
@@ -131,7 +131,7 @@ ${JSON.stringify(inputData)}
 [{"id": "uuid-1", "lat": 35.123, "lng": 139.456}, {"id": "uuid-2", "lat": 35.456, "lng": 139.789}]`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: GEMINI_MODEL,
         contents: prompt,
         config: {
           responseMimeType: 'application/json'
