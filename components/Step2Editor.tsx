@@ -105,7 +105,11 @@ export const Step2Editor: React.FC<Props> = ({ tripData, onUpdate, showAlert }) 
 
     const apiKey = ApiKeyManager.get();
     if (!apiKey) {
-      showAlert('API 金鑰缺失', '請先設定 Gemini API 金鑰以使用路線優化功能。', 'warning');
+      if (ApiKeyManager.hasKey()) {
+        showAlert('頻率限制已達上限', '您的 API Key 目前每分鐘使用次數已達上限（15次/分），請稍候再試。', 'warning');
+      } else {
+        showAlert('API 金鑰缺失', '請先設定 Gemini API 金鑰以使用路線優化功能。', 'warning');
+      }
       return;
     }
 

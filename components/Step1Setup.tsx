@@ -57,7 +57,11 @@ export const Step1Setup: React.FC<Props> = ({ tripData, onUpdate, onNext, showAl
     try {
       const apiKey = ApiKeyManager.get();
       if (!apiKey) {
-        showAlert('設定未完成', '請先點擊右上角「設定」圖示設定您的 Google API Key 才能使用 AI 功能。', 'warning');
+        if (ApiKeyManager.hasKey()) {
+          showAlert('頻率限制已達上限', '您的 API Key 目前每分鐘使用次數已達上限（15次/分），請稍候再試。', 'warning');
+        } else {
+          showAlert('設定未完成', '請先點擊右上角「設定」圖示設定您的 Google API Key 才能使用 AI 功能。', 'warning');
+        }
         setIsGenerating(false);
         return;
       }
