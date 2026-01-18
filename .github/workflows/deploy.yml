@@ -15,6 +15,7 @@ jobs:
     environment: github-pages # 指定環境以確保能讀取該環境的 Secrets
     env:
       VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      VITE_GOOGLE_SCRIPT_URL: ${{ secrets.VITE_GOOGLE_SCRIPT_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +33,10 @@ jobs:
         run: |
           if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
             echo "::error::VITE_GOOGLE_CLIENT_ID is missing! Please check GitHub Secrets."
+            exit 1
+          fi
+          if [ -z "$VITE_GOOGLE_SCRIPT_URL" ]; then
+            echo "::error::VITE_GOOGLE_SCRIPT_URL is missing! Please check GitHub Secrets."
             exit 1
           fi
 

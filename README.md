@@ -1,7 +1,7 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 
-# 📝 TripPlanner Pro (v0.6.0)
+# 📝 TripPlanner Pro (v0.6.1)
 
 
 ### 您的 AI 智慧旅遊規劃專家
@@ -102,6 +102,12 @@
 - **Utils**: clsx, tailwind-merge
 
 ---
+
+## 🆕 v0.6.1 更新說明 (CI/CD & Deployment Fix)
+- **GitHub Pages 部署優化**：
+  - 修復 GitHub Pages 部署時遺漏 `VITE_GOOGLE_SCRIPT_URL` 環境變數的問題。
+  - 在 CI/CD 工作流中新增環境變數校驗步驟，確保 Secret 正確注入。
+  - 優化 `.github/workflows/deploy.yml` 的安全性與穩定性。
 
 ## 🆕 v0.6.0 更新說明 (Universal PDF Export & Cloud Sync)
 - **PDF 萬能匯出引擎**：
